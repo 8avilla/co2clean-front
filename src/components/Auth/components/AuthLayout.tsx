@@ -23,7 +23,6 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
           priority
           loading="eager"
         />
-        <div className="absolute inset-0 bg-black/20" /> {/* Subtle overlay for better logo visibility if needed */}
       </div>
 
       {/* Form Section */}
@@ -31,14 +30,13 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
         <div className="w-full max-w-md">
           {/* Logo for mobile */}
           <div className="lg:hidden flex justify-center mb-8">
-            <Image
-              src="/logo-app.png"
-              alt="CleanCO2 Logo"
+            <img
+              src="/logo-app.png?v=2"
+              alt="EcoCore Logo"
               width={180}
               height={120}
               className="object-contain"
               style={{ width: 'auto', height: 'auto' }}
-              loading="eager"
             />
           </div>
 

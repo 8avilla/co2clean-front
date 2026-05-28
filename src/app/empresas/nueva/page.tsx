@@ -5,7 +5,7 @@ import { PermissionCode } from '@/shared/constants/permissions';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Nueva Empresa | CleanCo2',
+  title: 'Nueva Empresa | EcoCore',
 };
 
 export default function NewCompanyPage() {

@@ -5,7 +5,7 @@ import { PermissionCode } from '@/shared/constants/permissions';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Gestión de Usuarios | CleanCo2',
+  title: 'Gestión de Usuarios | EcoCore',
 };
 
 export default function UsersPage() {

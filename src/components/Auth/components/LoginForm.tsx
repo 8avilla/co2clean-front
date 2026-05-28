@@ -46,15 +46,13 @@ export const LoginForm: React.FC = () => {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col items-center sm:items-start gap-6">
-        <Image
-          src="/logo-app.png"
-          alt="CleanCO2 Logo"
+        <img
+          src="/logo-app.png?v=2"
+          alt="EcoCore Logo"
           width={280}
           height={220}
           className="object-contain"
           style={{ width: 'auto', height: 'auto' }}
-          priority
-          loading="eager"
         />
         <div className="space-y-2 text-center sm:text-left">
           <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">

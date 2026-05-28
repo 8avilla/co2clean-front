@@ -233,7 +233,7 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialData, isEditing
                   <input
                     {...register('name')}
                     className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all text-sm"
-                    placeholder="Ej. CleanCo2 SAS"
+                    placeholder="Ej. EcoCore SAS"
                   />
                   {errors.name && <p className="text-[10px] text-red-500 font-medium">{errors.name.message}</p>}
                 </div>

@@ -1,52 +1,136 @@
 import { z } from 'zod';
 
-export const CarbonFootprintSchema = z.object({
-  id: z.string().optional(),
-  createdAt: z.string().optional(),
-  estadoAnalisis: z.enum(['Pendiente', 'En Progreso', 'Completado']).optional(),
-  empresaId: z.string().min(1, 'Debe seleccionar una empresa'),
-  sedeId: z.string().min(1, 'Debe seleccionar una sede'),
-  anio: z.string().min(4, 'Año requerido'),
-  modoCarga: z.string().optional(),
-  categoria: z.string().min(1, 'Categoría requerida'),
-  fuente: z.string().min(1, 'Fuente requerida'),
-  subfuente: z.string().optional(),
-  item: z.string().optional(),
-  cantidadConsumida: z.string().optional(),
-  unidad: z.string().optional(),
-});
+// ── Catalog API shapes ──────────────────────────────────────────────────────
 
-export type CarbonFootprintData = z.infer<typeof CarbonFootprintSchema>;
-
-export interface CarbonFootprintListData extends CarbonFootprintData {
-  empresaNombre: string;
-  sedeNombre: string;
-  categoriaNombre: string;
-  fuenteNombre: string;
+export interface ApiAlcance {
+  id: string;
+  nombre: string;
+  codigo: string;
+  descripcion?: string;
 }
 
-// Mock data structures based on HTML options
-export const MODOS_CARGA = [
-  'Mensual',
-  'Anual'
-];
+export interface ApiFuenteEmision {
+  id: string;
+  nombre: string;
+  codigo: string;
+  descripcion?: string;
+}
 
-export const CATEGORIAS = [
-  { id: 'cat1', nombre: 'Categoría 1 — Emisiones directas de GEI' },
-  { id: 'cat2', nombre: 'Categoría 2 — Emisiones indirectas de GEI por energía importada' },
-  { id: 'cat4', nombre: 'Categoría 4 — Emisiones indirectas por productos utilizados por la organización' }
-];
+export interface ApiSubfuenteEmision {
+  id: string;
+  nombre: string;
+  codigo: string;
+  descripcion?: string;
+  fuenteEmisionId?: string;
+}
 
-export const FUENTES = [
-  { id: 'sin', nombre: 'Uso de energía del sistema interconectado nacional' },
-  { id: 'movil', nombre: 'Combustión Móvil' },
-  { id: 'estacionaria', nombre: 'Combustión Estacionaria' },
-  { id: 'extintores', nombre: 'Recarga de Extintores' },
-  { id: 'papel', nombre: 'Uso de papel' },
-  { id: 'residuos', nombre: 'Eliminación de Residuos Sólidos' },
-  { id: 'aguas', nombre: 'Tratamiento y eliminación de Aguas Residuales' }
-];
+export interface ApiUnidadEmision {
+  id: string;
+  nombre: string;
+  simbolo: string;
+  descripcion?: string;
+}
 
-export const SUBFUENTES_MOVIL = ['Gasolina', 'Diesel', 'Gas Natural'];
+export interface ApiEmissionFactor {
+  id: string;
+  nombre: string;
+  descripcion?: string;
+  anio: number;
+  valor: number;
+  alcanceId: string;
+  fuenteEmisionId: string;
+  subfuenteEmisionId?: string;
+  unidadEmisionId: string;
+  alcance?: ApiAlcance;
+  fuenteEmision?: ApiFuenteEmision;
+  subfuenteEmision?: ApiSubfuenteEmision;
+  unidadEmision?: ApiUnidadEmision;
+}
 
-export const UNIDADES = ['kWh', 'Litros', 'm³', 'Galones', 'kg', 'Toneladas'];
+export interface CreateEmissionFactorPayload {
+  nombre: string;
+  descripcion?: string;
+  anio: number;
+  alcanceId: string;
+  fuenteEmisionId: string;
+  subfuenteEmisionId?: string;
+  unidadEmisionId: string;
+  valor: number;
+}
+
+export type UpdateEmissionFactorPayload = Partial<CreateEmissionFactorPayload>;
+
+// ── Carbon footprint API shapes ─────────────────────────────────────────────
+
+export interface ApiCarbonFootprint {
+  id: string;
+  anio: number;
+  item?: string;
+  cantidad?: number;
+  modoCarga: 'Mensual' | 'Anual';
+  sedeId: string;
+  empresaId: string;
+  alcanceId?: string;
+  fuenteEmisionId: string;
+  subfuenteEmisionId?: string;
+  unidadEmisionId?: string;
+  createdAt: string;
+  alcance?: ApiAlcance;
+  fuenteEmision?: ApiFuenteEmision;
+  subfuenteEmision?: ApiSubfuenteEmision;
+  unidadEmision?: ApiUnidadEmision;
+}
+
+// ── Service interfaces ──────────────────────────────────────────────────────
+
+export interface CarbonFootprintFilters {
+  empresaId: string;
+  anio?: number;
+  sedeId?: string;
+  alcanceId?: string;
+  fuenteEmisionId?: string;
+  subfuenteEmisionId?: string;
+  fechaInicio?: string;
+  fechaFin?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface UploadCsvParams {
+  anio: string;
+  nit: string;
+  sedeId: string;
+  alcanceId?: string;
+  fuenteEmisionId: string;
+  subfuenteEmisionId?: string;
+  unidadEmisionId?: string;
+  modoCarga?: 'Mensual' | 'Anual';
+}
+
+export interface UpdateCarbonFootprintPayload {
+  anio?: number;
+  item?: string;
+  cantidad?: number;
+  alcanceId?: string;
+  fuenteEmisionId?: string;
+  subfuenteEmisionId?: string;
+  unidadEmisionId?: string;
+  modoCarga?: 'Mensual' | 'Anual';
+}
+
+// ── Zod schema for upload form ──────────────────────────────────────────────
+
+export const CarbonFootprintSchema = z.object({
+  sedeId: z.string().min(1, 'Debe seleccionar una sede'),
+  anio: z.string().min(4, 'Año requerido'),
+  alcanceId: z.string().optional(),
+  fuenteEmisionId: z.string().min(1, 'Fuente de emisión requerida'),
+  subfuenteEmisionId: z.string().optional(),
+  unidadEmisionId: z.string().optional(),
+});
+
+export type CarbonFootprintFormData = z.infer<typeof CarbonFootprintSchema>;
+
+// ── UI constants ────────────────────────────────────────────────────────────
+
+export const MODOS_CARGA = ['Mensual', 'Anual'] as const;

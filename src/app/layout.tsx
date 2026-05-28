@@ -14,8 +14,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CleanCO2",
+  title: "EcoCore",
   description: "Plataforma de gestión y análisis de huella de carbono empresarial",
+  icons: {
+    icon: "/logo-app.png",
+    shortcut: "/logo-app.png",
+    apple: "/logo-app.png",
+  },
 };
 
 export default function RootLayout({

@@ -5,7 +5,7 @@ import { PermissionCode } from '@/shared/constants/permissions';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Nuevo Rol | CleanCo2',
+  title: 'Nuevo Rol | EcoCore',
 };
 
 export default function NewRolePage() {

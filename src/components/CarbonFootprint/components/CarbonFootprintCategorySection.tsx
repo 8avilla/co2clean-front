@@ -48,7 +48,7 @@ export const CarbonFootprintCategorySection: React.FC<CarbonFootprintCategorySec
       <div className="space-y-3">
         <h3 className="text-sm font-black text-zinc-900 flex items-center gap-2">
           <span className="w-1.5 h-1.5 bg-zinc-900 rounded-full"></span>
-          Categoría {categoryNumber}: {categoryTitle}:
+          Alcance {categoryNumber}: {categoryTitle}:
         </h3>
         <p className="text-sm text-zinc-600 leading-relaxed max-w-4xl">
           {description}
@@ -59,7 +59,7 @@ export const CarbonFootprintCategorySection: React.FC<CarbonFootprintCategorySec
       <div className="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm">
         <div className="text-center mb-6">
           <h4 className="text-base font-bold text-zinc-800">Emisiones GEI en tCO2e</h4>
-          <p className="text-sm font-bold text-zinc-900 uppercase">Categoría: {categoryTitle}</p>
+          <p className="text-sm font-bold text-zinc-900 uppercase">Alcance: {categoryTitle}</p>
         </div>
         
         <div className="h-[350px] w-full">
@@ -93,13 +93,13 @@ export const CarbonFootprintCategorySection: React.FC<CarbonFootprintCategorySec
       {/* Table Card */}
       <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
         <div className="bg-zinc-800 text-white p-2 text-center text-[10px] font-bold uppercase tracking-widest">
-          Categoría: {categoryTitle}
+          Alcance: {categoryTitle}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-[10px]">
             <thead>
               <tr className="bg-zinc-50 border-b border-zinc-100 text-zinc-500 uppercase font-bold">
-                <th className="p-2 text-left">Categoría</th>
+                <th className="p-2 text-left">Alcance</th>
                 <th className="p-2 text-center">CO2</th>
                 <th className="p-2 text-center">CO2(b)</th>
                 <th className="p-2 text-center">CH4</th>

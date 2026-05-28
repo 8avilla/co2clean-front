@@ -100,7 +100,7 @@ export const Header = () => {
             name: parsed.name || 'Usuario',
             email: parsed.email || '',
             role: parsed.role || 'Usuario',
-            companyName: parsed.company?.name || 'CleanCO2',
+            companyName: parsed.company?.name || 'EcoCore',
             companyId: parsed.company?.id || '',
             companies: parsed.companies || []
           });

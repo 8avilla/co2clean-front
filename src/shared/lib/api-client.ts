@@ -1,7 +1,7 @@
 import Cookies from 'js-cookie';
 
 /**
- * Shared HTTP client for CO2Clean API.
+ * Shared HTTP client for EcoCore API.
  * Automatically attaches the JWT auth-token from cookies to every request.
  */
 
@@ -34,18 +34,30 @@ export async function apiFetch<T = unknown>(
   }
 
   const token = getToken();
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
 
   const response = await fetch(url, {
     ...rest,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body !== undefined ? (isFormData ? body : JSON.stringify(body)) : undefined,
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      // Clear token from cookies
+      Cookies.remove('auth-token');
+      
+      // Clear user info from localStorage and redirect to login page
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
+    }
+
     const errorBody = await response.json().catch(() => ({}));
     const message =
       (errorBody as { message?: string }).message ??

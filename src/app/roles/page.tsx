@@ -5,7 +5,7 @@ import { PermissionCode } from '@/shared/constants/permissions';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Roles y Permisos | CleanCo2',
+  title: 'Roles y Permisos | EcoCore',
 };
 
 export default function RolesPage() {

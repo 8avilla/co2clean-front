@@ -35,9 +35,9 @@ export const Sidebar = () => {
     <aside className="w-64 h-screen bg-white border-r border-zinc-200 flex flex-col fixed left-0 top-0 overflow-y-auto z-20">
       {/* Logo Area */}
       <div className="h-16 flex items-center px-6 border-b border-zinc-100 flex-shrink-0">
-        <Image
-          src="/logo-app.png"
-          alt="CleanCO2 Logo"
+        <img
+          src="/logo-app.png?v=2"
+          alt="EcoCore Logo"
           width={220}
           height={180}
           className="object-contain"
@@ -111,8 +111,8 @@ export const Sidebar = () => {
 
         {/* Huella de Carbono */}
         {hasPermission(PermissionCode.VIEW_CARBON_FOOTPRINT) ||
-         hasPermission(PermissionCode.VIEW_CARBON_FOOTPRINT_ANALYSIS) ||
-         hasPermission(PermissionCode.MANAGE_EMISSION_FACTORS) ? (
+          hasPermission(PermissionCode.VIEW_CARBON_FOOTPRINT_ANALYSIS) ||
+          hasPermission(PermissionCode.MANAGE_EMISSION_FACTORS) ? (
           <div className="space-y-1">
             <div
               className={cn(
@@ -139,7 +139,7 @@ export const Sidebar = () => {
                       : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
                   )}
                 >
-                  Registro de emisiones
+                  Emisiones de huella de carbono
                 </Link>
               )}
 
