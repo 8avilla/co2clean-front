@@ -5,6 +5,7 @@ import { MainLayout } from '@/shared/components/Layout/MainLayout';
 import { CarbonFootprintResultChart } from '@/components/CarbonFootprint/components/CarbonFootprintResultChart';
 import { CarbonFootprintCategorySection } from '@/components/CarbonFootprint/components/CarbonFootprintCategorySection';
 import { CarbonFootprintService } from '@/components/CarbonFootprint/services/carbonFootprint.service';
+import { CarbonFootprintAnalysisService } from '@/components/CarbonFootprint/services/carbonFootprintAnalysis.service';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Download, FileText } from 'lucide-react';
 import { toast } from 'sonner';
@@ -58,9 +59,9 @@ export default function CarbonFootprintResultPage() {
     }
 
     try {
-      const anio = parseInt(id as string, 10);
+      const analysis = await CarbonFootprintAnalysisService.getById(id as string);
       const [records, headquarters] = await Promise.all([
-        CarbonFootprintService.getCarbonFootprints({ empresaId: activeCompany.id, anio }),
+        CarbonFootprintService.getCarbonFootprints({ empresaId: activeCompany.id, anio: analysis.anio }),
         CompanyService.getHeadquarters(activeCompany.id),
       ]);
 
@@ -76,7 +77,7 @@ export default function CarbonFootprintResultPage() {
         id: id as string,
         empresaNombre: activeCompany.name,
         sedeNombre: sede?.name ?? firstRecord.sedeId,
-        anio: id as string,
+        anio: String(analysis.anio),
       });
     } catch {
       toast.error('Error al cargar los resultados');

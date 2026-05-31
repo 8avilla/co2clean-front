@@ -13,8 +13,9 @@ import {
   X,
   RefreshCw,
 } from 'lucide-react';
-import { ApiCarbonFootprint } from '../types';
+import { ApiCarbonFootprint, ApiCarbonFootprintAnalysis } from '../types';
 import { CarbonFootprintService } from '../services/carbonFootprint.service';
+import { CarbonFootprintAnalysisService } from '../services/carbonFootprintAnalysis.service';
 import { CompanyService } from '../../Companies/services/company.service';
 import { ApiHeadquarter } from '../../Companies/types';
 import { toast } from 'sonner';
@@ -32,6 +33,7 @@ interface DisplayRow {
   fuenteNombre: string;
   subfuenteNombre: string;
   unidadNombre: string;
+  analysis?: ApiCarbonFootprintAnalysis;
 }
 
 interface ActiveCompany {
@@ -53,7 +55,8 @@ function getActiveCompanyFromSession(): ActiveCompany | null {
 
 function buildDisplayRows(
   records: ApiCarbonFootprint[],
-  hqMap: Map<string, string>
+  hqMap: Map<string, string>,
+  analysisMap: Map<number, ApiCarbonFootprintAnalysis>
 ): DisplayRow[] {
   return records.map(r => ({
     id: r.id,
@@ -62,10 +65,11 @@ function buildDisplayRows(
     modoCarga: r.modoCarga,
     item: r.item,
     cantidad: r.cantidad,
-    alcanceNombre: r.alcance?.nombre ?? '-',
+    alcanceNombre: r.grupoEmision?.nombre ?? '-',
     fuenteNombre: r.fuenteEmision?.nombre ?? '-',
     subfuenteNombre: r.subfuenteEmision?.nombre ?? '-',
     unidadNombre: r.unidadEmision?.simbolo ?? r.unidadEmision?.nombre ?? '-',
+    analysis: analysisMap.get(r.anio),
   }));
 }
 
@@ -94,13 +98,15 @@ export const CarbonFootprintRegistrationList = () => {
     }
     setLoading(true);
     try {
-      const [records, hq] = await Promise.all([
+      const [records, hq, analyses] = await Promise.all([
         CarbonFootprintService.getCarbonFootprints({ empresaId: activeCompany.id }),
         CompanyService.getHeadquarters(activeCompany.id),
+        CarbonFootprintAnalysisService.getAll({ empresaId: activeCompany.id }),
       ]);
       setHeadquarters(hq);
       const hqMap = new Map(hq.map(h => [h.id, h.name]));
-      setRows(buildDisplayRows(records, hqMap));
+      const analysisMap = new Map(analyses.map(a => [a.anio, a]));
+      setRows(buildDisplayRows(records, hqMap, analysisMap));
     } catch {
       toast.error('Error al cargar los registros');
     } finally {
@@ -113,10 +119,14 @@ export const CarbonFootprintRegistrationList = () => {
     loadData();
   }, [loadData]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (row: DisplayRow) => {
+    if (row.analysis?.estado === 'Successful') {
+      toast.error('No se puede eliminar un registro cuyo análisis ya fue completado.');
+      return;
+    }
     if (!confirm('¿Estás seguro de eliminar este registro?')) return;
     try {
-      await CarbonFootprintService.deleteCarbonFootprint(id);
+      await CarbonFootprintService.deleteCarbonFootprint(row.id);
       toast.success('Registro eliminado exitosamente');
       loadData();
     } catch {
@@ -266,13 +276,13 @@ export const CarbonFootprintRegistrationList = () => {
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Alcance</label>
+                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Grupo de Emisiones</label>
                 <select
                   value={filterAlcance}
                   onChange={e => { setFilterAlcance(e.target.value); setPage(1); }}
                   className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none bg-white"
                 >
-                  <option value="">Todos los alcances</option>
+                  <option value="">Todos los grupos</option>
                   {uniqueAlcances.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
@@ -289,8 +299,8 @@ export const CarbonFootprintRegistrationList = () => {
                 <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap">Ítem</th>
                 <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap text-right">Cantidad</th>
                 <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap">Unidad</th>
-                <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap">Año</th>
-                <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap">Alcance</th>
+                <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap">Análisis</th>
+                <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap">Grupo de Emisiones</th>
                 <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap">Fuente de emisión</th>
                 <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap">Subfuente</th>
                 <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap text-right">Acciones</th>
@@ -336,9 +346,24 @@ export const CarbonFootprintRegistrationList = () => {
                     </td>
                     <td className="px-5 py-3 text-zinc-500">{row.unidadNombre}</td>
                     <td className="px-5 py-3">
-                      <span className="px-2 py-0.5 bg-zinc-100 text-zinc-700 rounded text-xs font-medium">
-                        {row.anio}
-                      </span>
+                      {row.analysis ? (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-xs font-bold text-zinc-800">
+                            {row.anio} — {row.analysis.standard === 'GHG_Protocol' ? 'GHG Protocol' : 'ISO 14064'}
+                          </span>
+                          <span className={`text-[10px] font-bold w-max px-2 py-0.5 rounded-full ${
+                            row.analysis.estado === 'Successful'
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : row.analysis.estado === 'Processing'
+                                ? 'bg-blue-50 text-blue-700'
+                                : 'bg-zinc-100 text-zinc-500'
+                          }`}>
+                            {row.analysis.estado === 'Successful' ? 'Completado' : row.analysis.estado === 'Processing' ? 'En Proceso' : 'Sin Iniciar'}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-zinc-400">{row.anio} — Sin análisis</span>
+                      )}
                     </td>
                     <td className="px-5 py-3 text-zinc-600 text-xs">{row.alcanceNombre}</td>
                     <td className="px-5 py-3 text-zinc-700 text-xs font-medium">{row.fuenteNombre}</td>
@@ -347,9 +372,10 @@ export const CarbonFootprintRegistrationList = () => {
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         {hasPermission(PermissionCode.DELETE_CARBON_FOOTPRINT) && (
                           <button
-                            onClick={() => handleDelete(row.id)}
-                            className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Eliminar registro"
+                            onClick={() => handleDelete(row)}
+                            disabled={row.analysis?.estado === 'Successful'}
+                            className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-zinc-400"
+                            title={row.analysis?.estado === 'Successful' ? 'No se puede eliminar: análisis completado' : 'Eliminar registro'}
                           >
                             <Trash2 size={16} />
                           </button>

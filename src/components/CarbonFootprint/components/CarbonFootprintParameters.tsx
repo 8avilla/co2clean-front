@@ -80,20 +80,20 @@ export const CarbonFootprintParameters = () => {
   const uniqueAlcances = Array.from(
     new Map(
       factors
-        .filter(f => f.alcance)
-        .map(f => [f.alcanceId, f.alcance!])
+        .filter(f => f.grupoEmision)
+        .map(f => [f.grupoEmisionId, f.grupoEmision!])
     ).entries()
-  ).map(([id, alcance]) => ({ id, nombre: alcance.nombre }));
+  ).map(([id, grupo]) => ({ id, nombre: grupo.nombre }));
 
   const filteredFactors = activeTab === 'all'
     ? factors
-    : factors.filter(f => f.alcanceId === activeTab);
+    : factors.filter(f => f.grupoEmisionId === activeTab);
 
   const hasDirtyFactors = factors.some(f => f.isDirty);
 
   const getCategoryBadge = (factor: ApiEmissionFactor) => {
-    const nombre = factor.alcance?.nombre ?? '';
-    const codigo = factor.alcance?.codigo ?? '';
+    const nombre = factor.grupoEmision?.nombre ?? '';
+    const codigo = factor.grupoEmision?.codigo ?? '';
     if (codigo === '1' || nombre.includes('1')) {
       return (
         <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
@@ -194,7 +194,7 @@ export const CarbonFootprintParameters = () => {
                 : 'text-zinc-500 hover:text-zinc-800'
             }`}
           >
-            {alcance.nombre.match(/Alcance\s*\d+/i)?.[0] ?? alcance.nombre}
+            {alcance.nombre.match(/(?:Alcance|Categoría|Grupo)\s*\d+/i)?.[0] ?? alcance.nombre}
           </button>
         ))}
       </div>

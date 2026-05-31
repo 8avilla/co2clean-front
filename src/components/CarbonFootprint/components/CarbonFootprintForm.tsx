@@ -21,14 +21,16 @@ import {
   CarbonFootprintFormData,
   CarbonFootprintSchema,
   MODOS_CARGA,
-  ApiAlcance,
+  ApiGrupoEmision,
   ApiFuenteEmision,
   ApiSubfuenteEmision,
   ApiUnidadEmision,
+  ApiCarbonFootprintAnalysis,
 } from '../types';
 import { CarbonFootprintService } from '../services/carbonFootprint.service';
+import { CarbonFootprintAnalysisService } from '../services/carbonFootprintAnalysis.service';
 import {
-  AlcancesService,
+  GruposEmisionService,
   FuentesEmisionService,
   SubfuentesEmisionService,
   UnidadesEmisionService,
@@ -59,8 +61,11 @@ export const CarbonFootprintForm = () => {
   const router = useRouter();
   const [activeCompany] = useState(() => getActiveCompanyFromSession());
 
+  const [analyses, setAnalyses] = useState<ApiCarbonFootprintAnalysis[]>([]);
+  const [selectedAnalysisId, setSelectedAnalysisId] = useState('');
+
   const [branches, setBranches] = useState<ApiHeadquarter[]>([]);
-  const [alcances, setAlcances] = useState<ApiAlcance[]>([]);
+  const [alcances, setAlcances] = useState<ApiGrupoEmision[]>([]);
   const [fuentes, setFuentes] = useState<ApiFuenteEmision[]>([]);
   const [subfuentes, setSubfuentes] = useState<ApiSubfuenteEmision[]>([]);
   const [unidades, setUnidades] = useState<ApiUnidadEmision[]>([]);
@@ -86,21 +91,24 @@ export const CarbonFootprintForm = () => {
 
   const watchFuenteId = watch('fuenteEmisionId');
 
-  // Load initial catalogs in parallel
+  // Load initial catalogs and available analyses in parallel (grupos excluded — loaded per analysis)
   useEffect(() => {
     if (!activeCompany) return;
     const loadAll = async () => {
       try {
-        const [hq, alc, fue, uni] = await Promise.all([
+        const [hq, fue, uni, availableAnalyses] = await Promise.all([
           CompanyService.getHeadquarters(activeCompany.id),
-          AlcancesService.getAll(),
           FuentesEmisionService.getAll(),
           UnidadesEmisionService.getAll(),
+          CarbonFootprintAnalysisService.getAll({
+            empresaId: activeCompany.id,
+            estado: 'WithoutStarting',
+          }),
         ]);
         setBranches(hq);
-        setAlcances(alc);
         setFuentes(fue);
         setUnidades(uni);
+        setAnalyses(availableAnalyses);
       } catch {
         toast.error('Error al cargar los catálogos');
       }
@@ -108,7 +116,24 @@ export const CarbonFootprintForm = () => {
     loadAll();
   }, [activeCompany]);
 
-  // Load subfuentes when fuenteEmisionId changes
+  // When analysis changes: auto-fill year, reset grupo, and load grupos filtered by standard
+  useEffect(() => {
+    const analysis = analyses.find(a => a.id === selectedAnalysisId);
+    setValue('grupoEmisionId', undefined);
+    setAlcances([]);
+
+    if (!analysis) return;
+
+    setValue('anio', String(analysis.anio));
+
+    if (analysis.standard) {
+      GruposEmisionService.getAll({ standard: analysis.standard })
+        .then(setAlcances)
+        .catch(() => toast.error('Error al cargar los grupos de emisión'));
+    }
+  }, [selectedAnalysisId, analyses, setValue]);
+
+  // Load subfuentes and reset unidad when fuenteEmisionId changes
   const loadSubfuentes = useCallback(async (fuenteEmisionId: string) => {
     try {
       const data = await SubfuentesEmisionService.getAll(fuenteEmisionId);
@@ -119,6 +144,7 @@ export const CarbonFootprintForm = () => {
   }, []);
 
   useEffect(() => {
+    setValue('unidadEmisionId', undefined);
     if (watchFuenteId) {
       setValue('subfuenteEmisionId', undefined);
       loadSubfuentes(watchFuenteId);
@@ -165,6 +191,10 @@ export const CarbonFootprintForm = () => {
   };
 
   const onSubmit = async (data: CarbonFootprintFormData) => {
+    if (!selectedAnalysisId) {
+      toast.error('Debe seleccionar un análisis de huella de carbono al que cargar las emisiones.');
+      return;
+    }
     if (!csvFile) {
       toast.error('Debe cargar el archivo CSV con los datos de huella de carbono.');
       return;
@@ -180,7 +210,7 @@ export const CarbonFootprintForm = () => {
         anio: data.anio,
         nit: activeCompany.nit,
         sedeId: data.sedeId,
-        alcanceId: data.alcanceId,
+        grupoEmisionId: data.grupoEmisionId,
         fuenteEmisionId: data.fuenteEmisionId,
         subfuenteEmisionId: data.subfuenteEmisionId,
         unidadEmisionId: data.unidadEmisionId,
@@ -196,15 +226,18 @@ export const CarbonFootprintForm = () => {
     }
   };
 
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
-
   const csvFormatHref =
     modoCarga === 'Mensual'
       ? '/formato-huella-mensual.csv'
       : modoCarga === 'Anual'
         ? '/formato-huella-anual.csv'
         : '#';
+
+  const selectedAnalysis = analyses.find(a => a.id === selectedAnalysisId);
+  const selectedFuente = fuentes.find(f => f.id === watchFuenteId);
+  const filteredUnidades = selectedFuente?.tipoUnidadId
+    ? unidades.filter(u => u.tipoUnidadId === selectedFuente.tipoUnidadId)
+    : unidades;
 
   return (
     <div className="w-full space-y-4">
@@ -233,48 +266,72 @@ export const CarbonFootprintForm = () => {
             <Building2 className="text-teal-600" size={18} />
             <h2 className="font-bold text-sm text-zinc-900">Identificación</h2>
           </div>
-          <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-zinc-700">Empresa</label>
-              <input
-                readOnly
-                value={activeCompany?.name ?? 'Sin empresa activa'}
-                className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-500 outline-none text-sm cursor-not-allowed"
-              />
-            </div>
-
+          <div className="p-4 space-y-4">
+            {/* Analysis selector — full width */}
             <div className="space-y-2">
               <label className="text-sm font-semibold text-zinc-700">
-                Sede <span className="text-red-500">*</span>
+                Análisis de huella de carbono <span className="text-red-500">*</span>
               </label>
-              <select
-                {...register('sedeId')}
-                disabled={branches.length === 0}
-                className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm disabled:bg-zinc-50 disabled:text-zinc-400"
-              >
-                <option value="">Seleccione</option>
-                {branches.map(b => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
-              {errors.sedeId && <p className="text-xs text-red-500">{errors.sedeId.message}</p>}
+              {analyses.length === 0 ? (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-sm">
+                  <span className="font-bold">Sin análisis disponibles.</span>
+                  No existen análisis en estado &quot;Sin Iniciar&quot;. Crea uno desde la sección de Análisis antes de cargar emisiones.
+                </div>
+              ) : (
+                <select
+                  value={selectedAnalysisId}
+                  onChange={(e) => setSelectedAnalysisId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm"
+                >
+                  <option value="">Seleccione un análisis</option>
+                  {analyses.map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.anio} — {a.standard === 'GHG_Protocol' ? 'GHG Protocol' : 'ISO 14064'}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-zinc-700">
-                Año de reporte <span className="text-red-500">*</span>
-              </label>
-              <select
-                {...register('anio')}
-                className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm"
-              >
-                {years.map(y => (
-                  <option key={y} value={y.toString()}>
-                    {y} {y === currentYear ? '(Actual)' : ''}
-                  </option>
-                ))}
-              </select>
-              {errors.anio && <p className="text-xs text-red-500">{errors.anio.message}</p>}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-zinc-700">Empresa</label>
+                <input
+                  readOnly
+                  value={activeCompany?.name ?? 'Sin empresa activa'}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-500 outline-none text-sm cursor-not-allowed"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-zinc-700">
+                  Sede <span className="text-red-500">*</span>
+                </label>
+                <select
+                  {...register('sedeId')}
+                  disabled={branches.length === 0}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm disabled:bg-zinc-50 disabled:text-zinc-400"
+                >
+                  <option value="">Seleccione</option>
+                  {branches.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+                {errors.sedeId && <p className="text-xs text-red-500">{errors.sedeId.message}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-zinc-700">Año de reporte</label>
+                <input
+                  readOnly
+                  value={
+                    selectedAnalysisId
+                      ? (analyses.find(a => a.id === selectedAnalysisId)?.anio ?? '')
+                      : 'Seleccione un análisis'
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-500 outline-none text-sm cursor-not-allowed"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -396,13 +453,15 @@ export const CarbonFootprintForm = () => {
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-zinc-700">Alcance</label>
+              <label className="text-sm font-semibold text-zinc-700">Grupo de Emisiones</label>
               <select
-                {...register('alcanceId')}
+                {...register('grupoEmisionId')}
                 disabled={alcances.length === 0}
                 className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm disabled:bg-zinc-50 disabled:text-zinc-400"
               >
-                <option value="">Seleccione</option>
+                <option value="">
+                  {!selectedAnalysisId ? 'Seleccione un análisis primero' : 'Seleccione'}
+                </option>
                 {alcances.map(a => (
                   <option key={a.id} value={a.id}>{a.nombre}</option>
                 ))}
@@ -429,14 +488,23 @@ export const CarbonFootprintForm = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-zinc-700">Unidad de medida</label>
+              <label className="text-sm font-semibold text-zinc-700">
+                Unidad de medida
+                {selectedFuente?.tipoUnidad && (
+                  <span className="ml-2 text-[10px] font-normal text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded-full">
+                    {selectedFuente.tipoUnidad.nombre}
+                  </span>
+                )}
+              </label>
               <select
                 {...register('unidadEmisionId')}
-                disabled={unidades.length === 0}
+                disabled={filteredUnidades.length === 0}
                 className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm disabled:bg-zinc-50 disabled:text-zinc-400"
               >
-                <option value="">Seleccione</option>
-                {unidades.map(u => (
+                <option value="">
+                  {!watchFuenteId ? 'Seleccione una fuente primero' : 'Seleccione'}
+                </option>
+                {filteredUnidades.map(u => (
                   <option key={u.id} value={u.id}>
                     {u.nombre} ({u.simbolo})
                   </option>

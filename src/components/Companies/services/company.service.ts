@@ -62,6 +62,10 @@ export class CompanyService {
     return res ?? [];
   }
 
+  static async getHeadquarterById(id: string): Promise<ApiHeadquarter | null> {
+    return apiFetch<ApiHeadquarter>(`/api/headquarters/${id}`);
+  }
+
   static async createHeadquarter(
     companyId: string,
     data: HeadquarterFormData

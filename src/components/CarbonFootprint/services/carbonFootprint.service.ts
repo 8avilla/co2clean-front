@@ -13,7 +13,7 @@ export class CarbonFootprintService {
         empresaId: filters.empresaId,
         anio: filters.anio,
         sedeId: filters.sedeId,
-        alcanceId: filters.alcanceId,
+        grupoEmisionId: filters.grupoEmisionId,
         fuenteEmisionId: filters.fuenteEmisionId,
         subfuenteEmisionId: filters.subfuenteEmisionId,
         fechaInicio: filters.fechaInicio,
@@ -31,7 +31,7 @@ export class CarbonFootprintService {
     formData.append('anio', params.anio);
     formData.append('nit', params.nit);
     formData.append('sedeId', params.sedeId);
-    if (params.alcanceId) formData.append('alcanceId', params.alcanceId);
+    if (params.grupoEmisionId) formData.append('grupoEmisionId', params.grupoEmisionId);
     formData.append('fuenteEmisionId', params.fuenteEmisionId);
     if (params.subfuenteEmisionId) formData.append('subfuenteEmisionId', params.subfuenteEmisionId);
     if (params.unidadEmisionId) formData.append('unidadEmisionId', params.unidadEmisionId);
@@ -66,7 +66,7 @@ export class CarbonFootprintService {
         empresaId: filters.empresaId,
         anio: filters.anio,
         sedeId: filters.sedeId,
-        alcanceId: filters.alcanceId,
+        grupoEmisionId: filters.grupoEmisionId,
         fuenteEmisionId: filters.fuenteEmisionId,
         subfuenteEmisionId: filters.subfuenteEmisionId,
         fechaInicio: filters.fechaInicio,

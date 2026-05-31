@@ -8,7 +8,6 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  Play,
   Loader2,
   SlidersHorizontal,
   X,
@@ -16,23 +15,18 @@ import {
   Trash2,
   Calendar,
   TriangleAlert,
+  RefreshCw,
 } from 'lucide-react';
+import {
+  ApiCarbonFootprintAnalysis,
+  CarbonFootprintAnalysisStandard,
+  CarbonFootprintAnalysisStatus,
+} from '../types';
+import { CarbonFootprintAnalysisService } from '../services/carbonFootprintAnalysis.service';
 import { CarbonFootprintService } from '../services/carbonFootprint.service';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
-type AnalysisStatus = 'Pendiente' | 'En Progreso' | 'Completado';
-
-interface StoredAnalysis {
-  id: string;
-  empresaId: string;
-  empresaNombre: string;
-  anio: string;
-  estadoAnalisis: AnalysisStatus;
-  createdAt: string;
-}
-
-const ANALYSES_KEY = 'cleanco2_analyses_v2';
 const CURRENT_YEAR = new Date().getFullYear();
 const AVAILABLE_YEARS = Array.from({ length: 10 }, (_, i) => String(CURRENT_YEAR - i));
 
@@ -48,60 +42,25 @@ function getActiveCompanyFromSession(): { id: string; name: string } | null {
   }
 }
 
-function loadAnalyses(empresaId: string): StoredAnalysis[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const stored = localStorage.getItem(ANALYSES_KEY);
-    const all: StoredAnalysis[] = stored ? JSON.parse(stored) : [];
-    return all.filter(a => a.empresaId === empresaId);
-  } catch {
-    return [];
-  }
-}
-
-function persistAnalysis(analysis: StoredAnalysis): void {
-  if (typeof window === 'undefined') return;
-  try {
-    const stored = localStorage.getItem(ANALYSES_KEY);
-    const all: StoredAnalysis[] = stored ? JSON.parse(stored) : [];
-    const idx = all.findIndex(a => a.id === analysis.id && a.empresaId === analysis.empresaId);
-    if (idx >= 0) {
-      all[idx] = analysis;
-    } else {
-      all.push(analysis);
-    }
-    localStorage.setItem(ANALYSES_KEY, JSON.stringify(all));
-  } catch { /* noop */ }
-}
-
-function removeAnalysis(id: string, empresaId: string): void {
-  if (typeof window === 'undefined') return;
-  try {
-    const stored = localStorage.getItem(ANALYSES_KEY);
-    const all: StoredAnalysis[] = stored ? JSON.parse(stored) : [];
-    localStorage.setItem(
-      ANALYSES_KEY,
-      JSON.stringify(all.filter(a => !(a.id === id && a.empresaId === empresaId)))
-    );
-  } catch { /* noop */ }
-}
-
 export const CarbonFootprintAnalysisList = () => {
   const router = useRouter();
   const [activeCompany] = useState(() => getActiveCompanyFromSession());
 
-  const [analyses, setAnalyses] = useState<StoredAnalysis[]>([]);
+  const [analyses, setAnalyses] = useState<ApiCarbonFootprintAnalysis[]>([]);
   const [emissionYears, setEmissionYears] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [showModal, setShowModal] = useState(false);
   const [modalYear, setModalYear] = useState<string>(String(CURRENT_YEAR));
+  const [modalStandard, setModalStandard] = useState<CarbonFootprintAnalysisStandard>('GHG_Protocol');
+  const [isCreating, setIsCreating] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filterAnio, setFilterAnio] = useState('');
-  const [filterEstado, setFilterEstado] = useState('');
+  const [filterEstado, setFilterEstado] = useState<CarbonFootprintAnalysisStatus | ''>('');
 
   const loadData = useCallback(async () => {
     if (!activeCompany) {
@@ -110,11 +69,12 @@ export const CarbonFootprintAnalysisList = () => {
     }
     setLoading(true);
     try {
-      const records = await CarbonFootprintService.getCarbonFootprints({
-        empresaId: activeCompany.id,
-      });
+      const [analysisList, records] = await Promise.all([
+        CarbonFootprintAnalysisService.getAll({ empresaId: activeCompany.id }),
+        CarbonFootprintService.getCarbonFootprints({ empresaId: activeCompany.id }),
+      ]);
+      setAnalyses(analysisList);
       setEmissionYears(new Set(records.map(r => String(r.anio))));
-      setAnalyses(loadAnalyses(activeCompany.id));
     } catch {
       toast.error('Error al cargar los análisis');
     } finally {
@@ -127,56 +87,62 @@ export const CarbonFootprintAnalysisList = () => {
     loadData();
   }, [loadData]);
 
-  const yearHasAnalysis = (anio: string) => analyses.some(a => a.anio === anio);
+  const yearHasAnalysis = (anio: string) =>
+    analyses.some(a => String(a.anio) === anio);
 
-  const handleGenerateAnalysis = () => {
+  const handleGenerateAnalysis = async () => {
     if (!activeCompany) return;
     if (yearHasAnalysis(modalYear)) {
       toast.error(`Ya existe un análisis para el año ${modalYear}`);
       return;
     }
-    const newAnalysis: StoredAnalysis = {
-      id: modalYear,
-      empresaId: activeCompany.id,
-      empresaNombre: activeCompany.name,
-      anio: modalYear,
-      estadoAnalisis: 'Pendiente',
-      createdAt: new Date().toISOString(),
-    };
-    persistAnalysis(newAnalysis);
-    setAnalyses(prev => [...prev, newAnalysis]);
-    setShowModal(false);
-    toast.success(`Análisis para el año ${modalYear} generado exitosamente`);
-  };
-
-  const handleStartAnalysis = async (analysis: StoredAnalysis) => {
-    if (!confirm('¿Estás seguro de iniciar el análisis? Una vez ejecutado no se podrá detener ni cancelar.'))
-      return;
-    setAnalyzingId(analysis.id);
-    await new Promise(r => setTimeout(r, 2500));
+    setIsCreating(true);
     try {
-      const updated: StoredAnalysis = { ...analysis, estadoAnalisis: 'Completado' };
-      persistAnalysis(updated);
-      setAnalyses(prev => prev.map(a => (a.id === analysis.id ? updated : a)));
-      toast.success('Análisis completado exitosamente');
+      const created = await CarbonFootprintAnalysisService.create({
+        empresaId: activeCompany.id,
+        anio: parseInt(modalYear, 10),
+        standard: modalStandard,
+      });
+      setAnalyses(prev => [created, ...prev]);
+      setShowModal(false);
+      toast.success(`Análisis para el año ${modalYear} creado exitosamente`);
     } catch {
-      toast.error('Error al completar el análisis');
+      toast.error('Error al crear el análisis');
     } finally {
-      setAnalyzingId(null);
+      setIsCreating(false);
     }
   };
 
-  const handleDelete = (analysis: StoredAnalysis) => {
-    if (!activeCompany) return;
-    if (!confirm(`¿Estás seguro de eliminar el análisis del año ${analysis.anio}? Esta acción no se puede deshacer.`))
-      return;
-    removeAnalysis(analysis.id, activeCompany.id);
-    setAnalyses(prev => prev.filter(a => a.id !== analysis.id));
-    toast.success(`Análisis del año ${analysis.anio} eliminado`);
+  const handleInitialize = async (analysis: ApiCarbonFootprintAnalysis) => {
+    if (!confirm('¿Inicializar el análisis y generar el informe?')) return;
+    setUpdatingId(analysis.id);
+    try {
+      const updated = await CarbonFootprintAnalysisService.initialize(analysis.id);
+      setAnalyses(prev => prev.map(a => (a.id === analysis.id ? updated : a)));
+      toast.success(`Análisis del año ${analysis.anio} inicializado`);
+    } catch {
+      toast.error('Error al inicializar el análisis');
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
-  const uniqueAnios = [...new Set(analyses.map(a => a.anio))].sort().reverse();
-  const ESTADOS: AnalysisStatus[] = ['Pendiente', 'En Progreso', 'Completado'];
+  const handleDelete = async (analysis: ApiCarbonFootprintAnalysis) => {
+    if (!confirm(`¿Estás seguro de eliminar el análisis del año ${analysis.anio}? Esta acción no se puede deshacer.`))
+      return;
+    setDeletingId(analysis.id);
+    try {
+      await CarbonFootprintAnalysisService.delete(analysis.id);
+      setAnalyses(prev => prev.filter(a => a.id !== analysis.id));
+      toast.success(`Análisis del año ${analysis.anio} eliminado`);
+    } catch {
+      toast.error('Error al eliminar el análisis');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const uniqueAnios = [...new Set(analyses.map(a => String(a.anio)))].sort().reverse();
   const activeFiltersCount = [filterAnio, filterEstado].filter(Boolean).length;
 
   const clearFilters = () => {
@@ -187,37 +153,34 @@ export const CarbonFootprintAnalysisList = () => {
 
   const filteredAnalyses = analyses.filter(a => {
     const matchSearch =
-      !searchTerm ||
-      a.empresaNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.anio.includes(searchTerm);
+      !searchTerm || String(a.anio).includes(searchTerm);
     return (
       matchSearch &&
-      (!filterAnio || a.anio === filterAnio) &&
-      (!filterEstado || a.estadoAnalisis === filterEstado)
+      (!filterAnio || String(a.anio) === filterAnio) &&
+      (!filterEstado || a.estado === filterEstado)
     );
   });
 
-  const getStatusBadge = (status: AnalysisStatus) => {
-    switch (status) {
-      case 'Completado':
-        return (
-          <span className="flex items-center gap-1.5 w-max px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-bold">
-            <CheckCircle2 size={14} /> Completado
-          </span>
-        );
-      case 'En Progreso':
-        return (
-          <span className="flex items-center gap-1.5 w-max px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-bold">
-            <Clock size={14} /> En Progreso
-          </span>
-        );
-      default:
-        return (
-          <span className="flex items-center gap-1.5 w-max px-3 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs font-bold">
-            <AlertCircle size={14} /> Pendiente
-          </span>
-        );
+  const getStatusBadge = (estado: CarbonFootprintAnalysisStatus) => {
+    if (estado === 'Successful') {
+      return (
+        <span className="flex items-center gap-1.5 w-max px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-bold">
+          <CheckCircle2 size={14} /> Completado
+        </span>
+      );
     }
+    if (estado === 'Processing') {
+      return (
+        <span className="flex items-center gap-1.5 w-max px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-bold">
+          <Loader2 size={14} className="animate-spin" /> En Proceso
+        </span>
+      );
+    }
+    return (
+      <span className="flex items-center gap-1.5 w-max px-3 py-1 bg-zinc-100 text-zinc-600 border border-zinc-200 rounded-full text-xs font-bold">
+        <Clock size={14} /> Sin Iniciar
+      </span>
+    );
   };
 
   const modalConflict = yearHasAnalysis(modalYear);
@@ -233,24 +196,34 @@ export const CarbonFootprintAnalysisList = () => {
             Gestiona y revisa el estado de los análisis de emisiones cargadas.
           </p>
         </div>
-        <button
-          onClick={() => { setModalYear(String(CURRENT_YEAR)); setShowModal(true); }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors shadow-sm shadow-blue-500/20"
-        >
-          <Plus size={18} />
-          Generar Análisis
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => loadData()}
+            disabled={loading}
+            className="p-2 text-zinc-500 hover:bg-zinc-100 border border-zinc-200 rounded-lg transition-colors disabled:opacity-50"
+            title="Recargar"
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          </button>
+          <button
+            onClick={() => { setModalYear(String(CURRENT_YEAR)); setModalStandard('GHG_Protocol'); setShowModal(true); }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors shadow-sm shadow-blue-500/20"
+          >
+            <Plus size={18} />
+            Crear Análisis
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">
         {/* Toolbar */}
         <div className="p-4 border-b border-zinc-100 bg-zinc-50/50 flex flex-col gap-3">
           <div className="flex flex-col sm:flex-row gap-3 justify-between items-center">
-            <div className="relative w-full sm:w-96">
+            <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
               <input
                 type="text"
-                placeholder="Buscar por empresa o año..."
+                placeholder="Buscar por año..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
@@ -259,11 +232,10 @@ export const CarbonFootprintAnalysisList = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowFilters(v => !v)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold border transition-all ${
-                  showFilters || activeFiltersCount > 0
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-500/20'
-                    : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
-                }`}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold border transition-all ${showFilters || activeFiltersCount > 0
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-500/20'
+                  : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
+                  }`}
               >
                 <SlidersHorizontal size={16} />
                 Filtros
@@ -276,7 +248,7 @@ export const CarbonFootprintAnalysisList = () => {
               {activeFiltersCount > 0 && (
                 <button
                   onClick={clearFilters}
-                  className="p-2 rounded-xl text-sm text-red-500 hover:bg-red-50 border border-red-100 transition-colors"
+                  className="p-2 rounded-xl text-red-500 hover:bg-red-50 border border-red-100 transition-colors"
                   title="Limpiar filtros"
                 >
                   <X size={16} />
@@ -302,11 +274,13 @@ export const CarbonFootprintAnalysisList = () => {
                 <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Estado</label>
                 <select
                   value={filterEstado}
-                  onChange={(e) => setFilterEstado(e.target.value)}
+                  onChange={(e) => setFilterEstado(e.target.value as CarbonFootprintAnalysisStatus | '')}
                   className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white"
                 >
                   <option value="">Todos los estados</option>
-                  {ESTADOS.map(s => <option key={s} value={s}>{s}</option>)}
+                  <option value="WithoutStarting">Sin Iniciar</option>
+                  <option value="Processing">En Proceso</option>
+                  <option value="Successful">Completado</option>
                 </select>
               </div>
             </div>
@@ -321,14 +295,15 @@ export const CarbonFootprintAnalysisList = () => {
                 <th className="px-6 py-4 font-semibold text-zinc-600 whitespace-nowrap">Empresa</th>
                 <th className="px-6 py-4 font-semibold text-zinc-600 whitespace-nowrap">Año</th>
                 <th className="px-6 py-4 font-semibold text-zinc-600 whitespace-nowrap">Estado</th>
-                <th className="px-6 py-4 font-semibold text-zinc-600 whitespace-nowrap">Fecha de creación</th>
+                <th className="px-6 py-4 font-semibold text-zinc-600 whitespace-nowrap">Creado</th>
                 <th className="px-6 py-4 font-semibold text-zinc-600 text-right whitespace-nowrap">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-zinc-500">
+                  <td colSpan={5} className="px-6 py-10 text-center text-zinc-400">
+                    <RefreshCw size={20} className="animate-spin mx-auto mb-2" />
                     Cargando análisis...
                   </td>
                 </tr>
@@ -342,7 +317,7 @@ export const CarbonFootprintAnalysisList = () => {
                       <div className="space-y-1">
                         <h3 className="font-semibold text-zinc-900">No hay análisis generados</h3>
                         <p className="text-zinc-500 text-sm">
-                          Haz clic en "Generar Análisis" para crear uno nuevo.
+                          Haz clic en "Crear Análisis" para crear uno nuevo.
                         </p>
                       </div>
                     </div>
@@ -351,58 +326,69 @@ export const CarbonFootprintAnalysisList = () => {
               ) : (
                 filteredAnalyses.map(analysis => (
                   <tr key={analysis.id} className="hover:bg-zinc-50/50 transition-colors group">
-                    <td className="px-6 py-4">
-                      <span className="font-bold text-zinc-900">{analysis.empresaNombre}</span>
+                    <td className="px-6 py-4 font-bold text-zinc-900">
+                      {activeCompany?.name ?? '-'}
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-2.5 py-1 bg-zinc-100 text-zinc-700 rounded-md text-xs font-medium">
                         {analysis.anio}
                       </span>
                     </td>
-                    <td className="px-6 py-4">{getStatusBadge(analysis.estadoAnalisis)}</td>
+                    <td className="px-6 py-4">{getStatusBadge(analysis.estado)}</td>
                     <td className="px-6 py-4 text-zinc-500 text-xs">
-                      {new Date(analysis.createdAt).toLocaleDateString('es-CO', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })}
+                      {analysis.createdAt
+                        ? new Date(analysis.createdAt).toLocaleDateString('es-CO', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })
+                        : '-'}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {analysis.estadoAnalisis === 'Completado' ? (
+                        {analysis.estado === 'Successful' ? (
                           <button
-                            onClick={() => router.push(`/huella-carbono/analisis/resultados/${analysis.anio}`)}
+                            onClick={() => router.push(`/huella-carbono/analisis/resultados/${analysis.id}`)}
                             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
                           >
                             <BarChart2 size={14} />
                             Ver Resultados
                           </button>
+                        ) : analysis.estado === 'Processing' ? (
+                          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold text-blue-600 bg-blue-50">
+                            <Loader2 size={14} className="animate-spin" />
+                            Procesando...
+                          </span>
                         ) : (
                           <button
-                            onClick={() => handleStartAnalysis(analysis)}
-                            disabled={analyzingId !== null}
-                            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={() => handleInitialize(analysis)}
+                            disabled={updatingId !== null}
+                            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors bg-teal-50 text-teal-700 hover:bg-teal-100 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            {analyzingId === analysis.id ? (
+                            {updatingId === analysis.id ? (
                               <>
                                 <Loader2 size={14} className="animate-spin" />
-                                Analizando...
+                                Iniciando...
                               </>
                             ) : (
                               <>
-                                <Play size={14} fill="currentColor" />
-                                Iniciar Análisis
+                                <CheckCircle2 size={14} />
+                                Inicializar
                               </>
                             )}
                           </button>
                         )}
                         <button
                           onClick={() => handleDelete(analysis)}
-                          disabled={analyzingId === analysis.id}
-                          className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed opacity-0 group-hover:opacity-100"
+                          disabled={deletingId === analysis.id}
+                          className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 opacity-0 group-hover:opacity-100"
                           title="Eliminar análisis"
                         >
-                          <Trash2 size={15} />
+                          {deletingId === analysis.id ? (
+                            <Loader2 size={15} className="animate-spin" />
+                          ) : (
+                            <Trash2 size={15} />
+                          )}
                         </button>
                       </div>
                     </td>
@@ -419,7 +405,7 @@ export const CarbonFootprintAnalysisList = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setShowModal(false)}
+            onClick={() => !isCreating && setShowModal(false)}
           />
           <div className="relative bg-white rounded-2xl shadow-xl border border-zinc-200 w-full max-w-md p-6 space-y-5 animate-in fade-in zoom-in-95">
             {/* Modal header */}
@@ -429,13 +415,14 @@ export const CarbonFootprintAnalysisList = () => {
                   <BarChart2 size={20} />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-zinc-900">Generar Análisis</h2>
+                  <h2 className="text-base font-bold text-zinc-900">Crear Análisis</h2>
                   <p className="text-xs text-zinc-500">Selecciona el año a analizar</p>
                 </div>
               </div>
               <button
-                onClick={() => setShowModal(false)}
-                className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors"
+                onClick={() => !isCreating && setShowModal(false)}
+                disabled={isCreating}
+                className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors disabled:opacity-50"
               >
                 <X size={18} />
               </button>
@@ -450,12 +437,36 @@ export const CarbonFootprintAnalysisList = () => {
               <select
                 value={modalYear}
                 onChange={(e) => setModalYear(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-sm font-medium text-zinc-900 bg-white"
+                disabled={isCreating}
+                className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-sm font-medium text-zinc-900 bg-white disabled:opacity-50"
               >
                 {AVAILABLE_YEARS.map(y => (
                   <option key={y} value={y}>{y}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Standard selector */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-zinc-700">
+                Estándar de reporte
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {(['GHG_Protocol', 'ISO_14064'] as const).map((std) => (
+                  <button
+                    key={std}
+                    type="button"
+                    onClick={() => setModalStandard(std)}
+                    disabled={isCreating}
+                    className={`px-3 py-2.5 rounded-xl border text-sm font-bold transition-all disabled:opacity-50 ${modalStandard === std
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-zinc-700 border-zinc-200 hover:border-blue-300'
+                      }`}
+                  >
+                    {std === 'GHG_Protocol' ? 'GHG Protocol' : 'ISO 14064'}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Status feedback */}
@@ -471,8 +482,8 @@ export const CarbonFootprintAnalysisList = () => {
               <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
                 <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-500" />
                 <p>
-                  No hay registros de emisiones cargados para el año{' '}
-                  <span className="font-bold">{modalYear}</span>. El análisis se generará vacío.
+                  No hay registros de emisiones para el año{' '}
+                  <span className="font-bold">{modalYear}</span>. El análisis se creará sin datos cargados.
                 </p>
               </div>
             ) : (
@@ -480,7 +491,7 @@ export const CarbonFootprintAnalysisList = () => {
                 <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-500" />
                 <p>
                   Hay registros disponibles para el año{' '}
-                  <span className="font-bold">{modalYear}</span>. Puedes generar el análisis.
+                  <span className="font-bold">{modalYear}</span>. Puedes crear el análisis.
                 </p>
               </div>
             )}
@@ -489,16 +500,24 @@ export const CarbonFootprintAnalysisList = () => {
             <div className="flex gap-3 pt-1">
               <button
                 onClick={() => setShowModal(false)}
-                className="flex-1 px-4 py-2.5 text-sm font-bold text-zinc-600 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-colors"
+                disabled={isCreating}
+                className="flex-1 px-4 py-2.5 text-sm font-bold text-zinc-600 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-colors disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleGenerateAnalysis}
-                disabled={modalConflict}
-                className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={modalConflict || isCreating}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Generar Análisis
+                {isCreating ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    Creando...
+                  </>
+                ) : (
+                  'Crear Análisis'
+                )}
               </button>
             </div>
           </div>
