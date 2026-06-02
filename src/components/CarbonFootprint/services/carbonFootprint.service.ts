@@ -10,14 +10,14 @@ export class CarbonFootprintService {
   static async getCarbonFootprints(filters: CarbonFootprintFilters): Promise<ApiCarbonFootprint[]> {
     const res = await apiFetch<ApiCarbonFootprint[]>('/api/carbon-footprint', {
       params: {
-        empresaId: filters.empresaId,
-        anio: filters.anio,
-        sedeId: filters.sedeId,
-        grupoEmisionId: filters.grupoEmisionId,
-        fuenteEmisionId: filters.fuenteEmisionId,
-        subfuenteEmisionId: filters.subfuenteEmisionId,
-        fechaInicio: filters.fechaInicio,
-        fechaFin: filters.fechaFin,
+        companyId: filters.companyId,
+        year: filters.year,
+        headquarterId: filters.headquarterId,
+        emissionGroupId: filters.emissionGroupId,
+        emissionSourceId: filters.emissionSourceId,
+        emissionSubsourceId: filters.emissionSubsourceId,
+        startDate: filters.startDate,
+        endDate: filters.endDate,
         page: filters.page ?? 1,
         limit: filters.limit ?? 100,
       },
@@ -28,19 +28,15 @@ export class CarbonFootprintService {
   static async uploadCsv(file: File, params: UploadCsvParams): Promise<void> {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('anio', params.anio);
+    formData.append('year', params.year);
     formData.append('nit', params.nit);
-    formData.append('sedeId', params.sedeId);
-    if (params.grupoEmisionId) formData.append('grupoEmisionId', params.grupoEmisionId);
-    formData.append('fuenteEmisionId', params.fuenteEmisionId);
-    if (params.subfuenteEmisionId) formData.append('subfuenteEmisionId', params.subfuenteEmisionId);
-    if (params.unidadEmisionId) formData.append('unidadEmisionId', params.unidadEmisionId);
-    if (params.modoCarga) formData.append('modoCarga', params.modoCarga);
+    formData.append('headquarterId', params.headquarterId);
+    formData.append('emissionGroupId', params.emissionGroupId);
+    formData.append('emissionSourceId', params.emissionSourceId);
+    if (params.emissionSubsourceId) formData.append('emissionSubsourceId', params.emissionSubsourceId);
+    if (params.emissionUnitId) formData.append('emissionUnitId', params.emissionUnitId);
 
-    await apiFetch<void>('/api/carbon-footprint/upload', {
-      method: 'POST',
-      body: formData,
-    });
+    await apiFetch<void>('/api/carbon-footprint/upload', { method: 'POST', body: formData });
   }
 
   static async updateCarbonFootprint(
@@ -63,14 +59,14 @@ export class CarbonFootprintService {
     await apiFetch<void>('/api/carbon-footprint', {
       method: 'DELETE',
       params: {
-        empresaId: filters.empresaId,
-        anio: filters.anio,
-        sedeId: filters.sedeId,
-        grupoEmisionId: filters.grupoEmisionId,
-        fuenteEmisionId: filters.fuenteEmisionId,
-        subfuenteEmisionId: filters.subfuenteEmisionId,
-        fechaInicio: filters.fechaInicio,
-        fechaFin: filters.fechaFin,
+        companyId: filters.companyId,
+        year: filters.year,
+        headquarterId: filters.headquarterId,
+        emissionGroupId: filters.emissionGroupId,
+        emissionSourceId: filters.emissionSourceId,
+        emissionSubsourceId: filters.emissionSubsourceId,
+        startDate: filters.startDate,
+        endDate: filters.endDate,
       },
     });
   }

@@ -12,9 +12,9 @@ export class CarbonFootprintAnalysisService {
   ): Promise<ApiCarbonFootprintAnalysis[]> {
     const res = await apiFetch<ApiCarbonFootprintAnalysis[]>('/api/carbon-footprint-analysis', {
       params: {
-        empresaId: filters?.empresaId,
-        anio: filters?.anio,
-        estado: filters?.estado,
+        companyId: filters?.companyId,
+        year: filters?.year,
+        status: filters?.status,
         page: filters?.page ?? 1,
         limit: filters?.limit ?? 100,
       },

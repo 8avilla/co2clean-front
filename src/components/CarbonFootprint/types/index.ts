@@ -1,232 +1,232 @@
 import { z } from 'zod';
 
-// ── Standards ───────────────────────────────────────────────────────────────
+// ── Standards ────────────────────────────────────────────────────────────────
 
 export type CarbonFootprintAnalysisStandard = 'ISO_14064' | 'GHG_Protocol';
 
-// ── Catalog API shapes ──────────────────────────────────────────────────────
+// ── Catalog API shapes ───────────────────────────────────────────────────────
 
-export interface ApiTipoUnidad {
+export interface ApiUnitType {
   id: string;
-  nombre: string;
-  codigo: string;
-  descripcion?: string;
+  name: string;
+  code: string;
+  description?: string;
 }
 
-export interface ApiGrupoEmision {
+export interface ApiEmissionGroup {
   id: string;
-  nombre: string;
-  codigo: string;
-  descripcion?: string;
+  name: string;
+  code: string;
+  description?: string;
   standard?: CarbonFootprintAnalysisStandard;
 }
 
-export interface ApiFuenteEmision {
+export interface ApiEmissionSource {
   id: string;
-  nombre: string;
-  codigo: string;
-  descripcion?: string;
-  tipoUnidadId?: string;
-  tipoUnidad?: ApiTipoUnidad;
+  name: string;
+  code: string;
+  description?: string;
+  unitTypeId?: string;
+  unitType?: ApiUnitType;
 }
 
-export interface ApiSubfuenteEmision {
+export interface ApiEmissionSubsource {
   id: string;
-  nombre: string;
-  codigo: string;
-  descripcion?: string;
-  fuenteEmisionId?: string;
+  name: string;
+  code: string;
+  description?: string;
+  emissionSourceId?: string;
 }
 
-export interface ApiUnidadEmision {
+export interface ApiEmissionUnit {
   id: string;
-  nombre: string;
-  simbolo: string;
-  descripcion?: string;
-  tipoUnidadId?: string;
-  tipoUnidad?: ApiTipoUnidad;
+  name: string;
+  symbol: string;
+  description?: string;
+  unitTypeId?: string;
+  unitType?: ApiUnitType;
 }
 
 export interface ApiEmissionFactor {
   id: string;
-  nombre: string;
-  descripcion?: string;
-  anio: number;
-  valor: number;
-  grupoEmisionId: string;
-  fuenteEmisionId: string;
-  subfuenteEmisionId?: string;
-  unidadEmisionId: string;
-  grupoEmision?: ApiGrupoEmision;
-  fuenteEmision?: ApiFuenteEmision;
-  subfuenteEmision?: ApiSubfuenteEmision;
-  unidadEmision?: ApiUnidadEmision;
+  name: string;
+  description?: string;
+  year: number;
+  value: number;
+  emissionGroupId: string;
+  emissionSourceId: string;
+  emissionSubsourceId?: string;
+  emissionUnitId: string;
+  emissionGroup?: ApiEmissionGroup;
+  emissionSource?: ApiEmissionSource;
+  emissionSubsource?: ApiEmissionSubsource;
+  emissionUnit?: ApiEmissionUnit;
 }
 
-// ── Catalog payload types ───────────────────────────────────────────────────
+// ── Catalog payload types ────────────────────────────────────────────────────
 
-export interface CreateGrupoEmisionPayload {
-  nombre: string;
-  codigo: string;
+export interface CreateUnitTypePayload {
+  name: string;
+  code: string;
+  description?: string;
+}
+
+export type UpdateUnitTypePayload = Partial<CreateUnitTypePayload>;
+
+export interface CreateEmissionGroupPayload {
+  name: string;
+  code: string;
   standard: CarbonFootprintAnalysisStandard;
-  descripcion?: string;
+  description?: string;
 }
 
-export type UpdateGrupoEmisionPayload = Partial<CreateGrupoEmisionPayload>;
+export type UpdateEmissionGroupPayload = Partial<CreateEmissionGroupPayload>;
 
-export interface CreateTipoUnidadPayload {
-  nombre: string;
-  codigo: string;
-  descripcion?: string;
+export interface CreateEmissionSourcePayload {
+  name: string;
+  code: string;
+  unitTypeId?: string;
+  description?: string;
 }
 
-export type UpdateTipoUnidadPayload = Partial<CreateTipoUnidadPayload>;
+export type UpdateEmissionSourcePayload = Partial<CreateEmissionSourcePayload>;
 
-export interface CreateFuenteEmisionPayload {
-  nombre: string;
-  codigo: string;
-  descripcion?: string;
-  tipoUnidadId?: string;
+export interface CreateEmissionSubsourcePayload {
+  name: string;
+  code: string;
+  description?: string;
+  emissionSourceId?: string;
 }
 
-export type UpdateFuenteEmisionPayload = Partial<CreateFuenteEmisionPayload>;
+export type UpdateEmissionSubsourcePayload = Partial<CreateEmissionSubsourcePayload>;
 
-export interface CreateSubfuenteEmisionPayload {
-  nombre: string;
-  codigo: string;
-  descripcion?: string;
-  fuenteEmisionId?: string;
+export interface CreateEmissionUnitPayload {
+  name: string;
+  symbol: string;
+  unitTypeId?: string;
+  description?: string;
 }
 
-export type UpdateSubfuenteEmisionPayload = Partial<CreateSubfuenteEmisionPayload>;
-
-export interface CreateUnidadEmisionPayload {
-  nombre: string;
-  simbolo: string;
-  descripcion?: string;
-  tipoUnidadId?: string;
-}
-
-export type UpdateUnidadEmisionPayload = Partial<CreateUnidadEmisionPayload>;
+export type UpdateEmissionUnitPayload = Partial<CreateEmissionUnitPayload>;
 
 export interface CreateEmissionFactorPayload {
-  nombre: string;
-  descripcion?: string;
-  anio: number;
-  grupoEmisionId: string;
-  fuenteEmisionId: string;
-  subfuenteEmisionId?: string;
-  unidadEmisionId: string;
-  valor: number;
+  name: string;
+  description?: string;
+  year: number;
+  emissionGroupId: string;
+  emissionSourceId: string;
+  emissionSubsourceId?: string;
+  emissionUnitId: string;
+  value: number;
 }
 
 export type UpdateEmissionFactorPayload = Partial<CreateEmissionFactorPayload>;
 
-// ── Carbon footprint API shapes ─────────────────────────────────────────────
+// ── Carbon Footprint API shapes ──────────────────────────────────────────────
 
 export interface ApiCarbonFootprint {
   id: string;
-  anio: number;
+  year: number;
   item?: string;
-  cantidad?: number;
-  modoCarga: 'Mensual' | 'Anual';
-  sedeId: string;
-  empresaId: string;
-  grupoEmisionId?: string;
-  fuenteEmisionId: string;
-  subfuenteEmisionId?: string;
-  unidadEmisionId?: string;
+  quantity?: number;
+  loadMode: 'Monthly' | 'Annual';
+  headquarterId: string;
+  companyId: string;
+  emissionGroupId?: string;
+  emissionSourceId: string;
+  emissionSubsourceId?: string;
+  emissionUnitId?: string;
   createdAt: string;
-  grupoEmision?: ApiGrupoEmision;
-  fuenteEmision?: ApiFuenteEmision;
-  subfuenteEmision?: ApiSubfuenteEmision;
-  unidadEmision?: ApiUnidadEmision;
+  emissionGroup?: ApiEmissionGroup;
+  emissionSource?: ApiEmissionSource;
+  emissionSubsource?: ApiEmissionSubsource;
+  emissionUnit?: ApiEmissionUnit;
 }
 
-// ── Service interfaces ──────────────────────────────────────────────────────
+// ── Service interfaces ───────────────────────────────────────────────────────
 
 export interface CarbonFootprintFilters {
-  empresaId: string;
-  anio?: number;
-  sedeId?: string;
-  grupoEmisionId?: string;
-  fuenteEmisionId?: string;
-  subfuenteEmisionId?: string;
-  fechaInicio?: string;
-  fechaFin?: string;
+  companyId: string;
+  year?: number;
+  headquarterId?: string;
+  emissionGroupId?: string;
+  emissionSourceId?: string;
+  emissionSubsourceId?: string;
+  startDate?: string;
+  endDate?: string;
   page?: number;
   limit?: number;
 }
 
 export interface UploadCsvParams {
-  anio: string;
+  year: string;
   nit: string;
-  sedeId: string;
-  grupoEmisionId?: string;
-  fuenteEmisionId: string;
-  subfuenteEmisionId?: string;
-  unidadEmisionId?: string;
-  modoCarga?: 'Mensual' | 'Anual';
+  headquarterId: string;
+  emissionGroupId: string;
+  emissionSourceId: string;
+  emissionSubsourceId?: string;
+  emissionUnitId?: string;
 }
 
 export interface UpdateCarbonFootprintPayload {
-  anio?: number;
+  year?: number;
   item?: string;
-  cantidad?: number;
-  grupoEmisionId?: string;
-  fuenteEmisionId?: string;
-  subfuenteEmisionId?: string;
-  unidadEmisionId?: string;
-  modoCarga?: 'Mensual' | 'Anual';
+  quantity?: number;
+  emissionGroupId?: string;
+  emissionSourceId?: string;
+  emissionSubsourceId?: string;
+  emissionUnitId?: string;
+  loadMode?: 'Monthly' | 'Annual';
 }
 
-// ── Zod schema for upload form ──────────────────────────────────────────────
+// ── Zod schema for upload form ───────────────────────────────────────────────
 
 export const CarbonFootprintSchema = z.object({
-  sedeId: z.string().min(1, 'Debe seleccionar una sede'),
-  anio: z.string().min(4, 'Año requerido'),
-  grupoEmisionId: z.string().optional(),
-  fuenteEmisionId: z.string().min(1, 'Fuente de emisión requerida'),
-  subfuenteEmisionId: z.string().optional(),
-  unidadEmisionId: z.string().optional(),
+  headquarterId: z.string().min(1, 'Debe seleccionar una sede'),
+  year: z.string().min(4, 'Año requerido'),
+  emissionGroupId: z.string().min(1, 'Debe seleccionar un grupo de emisiones'),
+  emissionSourceId: z.string().min(1, 'Fuente de emisión requerida'),
+  emissionSubsourceId: z.string().min(1, 'Subfuente de emisión requerida'),
+  emissionUnitId: z.string().optional(),
 });
 
 export type CarbonFootprintFormData = z.infer<typeof CarbonFootprintSchema>;
 
-// ── Carbon Footprint Analysis shapes ───────────────────────────────────────
+// ── Carbon Footprint Analysis shapes ────────────────────────────────────────
 
-export type CarbonFootprintAnalysisStatus = 'WithoutStarting' | 'Processing' | 'Successful';
+export type CarbonFootprintAnalysisStatus = 'NotStarted' | 'Processing' | 'Successful' | 'Deleted';
 
 export interface ApiCarbonFootprintAnalysis {
   id: string;
-  empresaId: string;
-  anio: number;
-  estado: CarbonFootprintAnalysisStatus;
+  companyId: string;
+  year: number;
+  status: CarbonFootprintAnalysisStatus;
   standard?: CarbonFootprintAnalysisStandard;
-  urlInforme?: string;
+  reportUrl?: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
 export interface CreateCarbonFootprintAnalysisPayload {
-  empresaId: string;
-  anio: number;
+  companyId: string;
+  year: number;
   standard: CarbonFootprintAnalysisStandard;
 }
 
 export interface UpdateCarbonFootprintAnalysisPayload {
-  estado?: CarbonFootprintAnalysisStatus;
-  urlInforme?: string;
+  status?: CarbonFootprintAnalysisStatus;
+  reportUrl?: string;
 }
 
 export interface CarbonFootprintAnalysisFilters {
-  empresaId?: string;
-  anio?: number;
-  estado?: CarbonFootprintAnalysisStatus;
+  companyId?: string;
+  year?: number;
+  status?: CarbonFootprintAnalysisStatus;
   page?: number;
   limit?: number;
 }
 
-// ── UI constants ────────────────────────────────────────────────────────────
+// ── UI constants ─────────────────────────────────────────────────────────────
 
-export const MODOS_CARGA = ['Mensual', 'Anual'] as const;
+export const LOAD_MODES = ['Monthly', 'Annual'] as const;
+export type LoadMode = typeof LOAD_MODES[number];

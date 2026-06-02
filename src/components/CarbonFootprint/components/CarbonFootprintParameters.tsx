@@ -33,7 +33,7 @@ export const CarbonFootprintParameters = () => {
   const loadFactors = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await EmissionFactorsService.getAll({ anio: parseInt(selectedYear) });
+      const data = await EmissionFactorsService.getAll({ year: parseInt(selectedYear) });
       setFactors(data.map(f => ({ ...f, isDirty: false })));
     } catch {
       toast.error('Error al cargar los factores de emisión');
@@ -51,7 +51,7 @@ export const CarbonFootprintParameters = () => {
     const parsed = parseFloat(val);
     setFactors(prev => prev.map(f => {
       if (f.id === id) {
-        return { ...f, valor: isNaN(parsed) ? 0 : parsed, isDirty: true };
+        return { ...f, value: isNaN(parsed) ? 0 : parsed, isDirty: true };
       }
       return f;
     }));
@@ -66,7 +66,7 @@ export const CarbonFootprintParameters = () => {
     setIsSaving(true);
     try {
       await Promise.all(
-        dirtyFactors.map(f => EmissionFactorsService.update(f.id, { valor: f.valor }))
+        dirtyFactors.map(f => EmissionFactorsService.update(f.id, { value: f.value }))
       );
       setFactors(prev => prev.map(f => ({ ...f, isDirty: false })));
       toast.success(`Factores del año ${selectedYear} guardados correctamente`);
@@ -80,20 +80,20 @@ export const CarbonFootprintParameters = () => {
   const uniqueAlcances = Array.from(
     new Map(
       factors
-        .filter(f => f.grupoEmision)
-        .map(f => [f.grupoEmisionId, f.grupoEmision!])
+        .filter(f => f.emissionGroup)
+        .map(f => [f.emissionGroupId, f.emissionGroup!])
     ).entries()
-  ).map(([id, grupo]) => ({ id, nombre: grupo.nombre }));
+  ).map(([id, grupo]) => ({ id, nombre: grupo.name }));
 
   const filteredFactors = activeTab === 'all'
     ? factors
-    : factors.filter(f => f.grupoEmisionId === activeTab);
+    : factors.filter(f => f.emissionGroupId === activeTab);
 
   const hasDirtyFactors = factors.some(f => f.isDirty);
 
   const getCategoryBadge = (factor: ApiEmissionFactor) => {
-    const nombre = factor.grupoEmision?.nombre ?? '';
-    const codigo = factor.grupoEmision?.codigo ?? '';
+    const nombre = factor.emissionGroup?.name ?? '';
+    const codigo = factor.emissionGroup?.code ?? '';
     if (codigo === '1' || nombre.includes('1')) {
       return (
         <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
@@ -234,16 +234,16 @@ export const CarbonFootprintParameters = () => {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <div className="p-1.5 bg-zinc-100 rounded-lg group-hover:bg-white transition-colors">
-                            {getSourceIcon(factor.fuenteEmision?.nombre ?? '')}
+                            {getSourceIcon(factor.emissionSource?.name ?? '')}
                           </div>
-                          <span className="font-bold text-zinc-950 text-sm">{factor.nombre}</span>
+                          <span className="font-bold text-zinc-950 text-sm">{factor.name}</span>
                           {factor.isDirty && (
                             <span className="text-xs text-amber-600 font-semibold">• Modificado</span>
                           )}
                         </div>
-                        {factor.descripcion && (
+                        {factor.description && (
                           <p className="text-zinc-500 text-xs leading-relaxed pl-7 max-w-sm">
-                            {factor.descripcion}
+                            {factor.description}
                           </p>
                         )}
                       </div>
@@ -254,9 +254,9 @@ export const CarbonFootprintParameters = () => {
                     </td>
 
                     <td className="p-4 align-middle text-zinc-600 font-medium">
-                      <span>{factor.fuenteEmision?.nombre ?? factor.fuenteEmisionId}</span>
-                      {factor.subfuenteEmision && (
-                        <span className="block text-xs text-zinc-400">{factor.subfuenteEmision.nombre}</span>
+                      <span>{factor.emissionSource?.name ?? factor.emissionSourceId}</span>
+                      {factor.emissionSubsource && (
+                        <span className="block text-xs text-zinc-400">{factor.emissionSubsource.name}</span>
                       )}
                     </td>
 
@@ -265,15 +265,15 @@ export const CarbonFootprintParameters = () => {
                         <input
                           type="number"
                           step="any"
-                          value={factor.valor}
+                          value={factor.value}
                           onChange={(e) => handleValueChange(factor.id, e.target.value)}
                           className="w-28 px-3 py-1.5 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-right font-bold text-sm text-zinc-800"
                         />
                         <span
                           className="text-xs font-semibold text-zinc-400 w-28 text-left truncate"
-                          title={factor.unidadEmision?.nombre}
+                          title={factor.emissionUnit?.name}
                         >
-                          {factor.unidadEmision?.simbolo ?? factor.unidadEmision?.nombre ?? factor.unidadEmisionId}
+                          {factor.emissionUnit?.symbol ?? factor.emissionUnit?.name ?? factor.emissionUnitId}
                         </span>
                       </div>
                     </td>

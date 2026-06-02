@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useState, useEffect, useRef } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Building2,
@@ -10,30 +10,30 @@ import {
   CheckCircle2,
   X,
   Flame,
-  Calculator,
   RefreshCw,
   Download,
   ArrowLeft,
   Save,
+  FilePlus,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   CarbonFootprintFormData,
   CarbonFootprintSchema,
-  MODOS_CARGA,
-  ApiGrupoEmision,
-  ApiFuenteEmision,
-  ApiSubfuenteEmision,
-  ApiUnidadEmision,
-  ApiCarbonFootprintAnalysis,
+  LOAD_MODES,
+  LoadMode,
+  ApiEmissionGroup,
+  ApiEmissionSource,
+  ApiEmissionSubsource,
+  ApiEmissionUnit,
 } from '../types';
 import { CarbonFootprintService } from '../services/carbonFootprint.service';
-import { CarbonFootprintAnalysisService } from '../services/carbonFootprintAnalysis.service';
 import {
-  GruposEmisionService,
-  FuentesEmisionService,
-  SubfuentesEmisionService,
-  UnidadesEmisionService,
+  EmissionGroupsService,
+  EmissionSourcesService,
+  EmissionSubsourcesService,
+  EmissionUnitsService,
 } from '../services/catalogs.service';
 import { CompanyService } from '../../Companies/services/company.service';
 import { ApiHeadquarter } from '../../Companies/types';
@@ -57,22 +57,31 @@ function getActiveCompanyFromSession(): ActiveCompany | null {
   }
 }
 
+const MONTH_LABELS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const MONTH_KEYS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
 export const CarbonFootprintForm = () => {
   const router = useRouter();
   const [activeCompany] = useState(() => getActiveCompanyFromSession());
 
-  const [analyses, setAnalyses] = useState<ApiCarbonFootprintAnalysis[]>([]);
-  const [selectedAnalysisId, setSelectedAnalysisId] = useState('');
-
   const [branches, setBranches] = useState<ApiHeadquarter[]>([]);
-  const [alcances, setAlcances] = useState<ApiGrupoEmision[]>([]);
-  const [fuentes, setFuentes] = useState<ApiFuenteEmision[]>([]);
-  const [subfuentes, setSubfuentes] = useState<ApiSubfuenteEmision[]>([]);
-  const [unidades, setUnidades] = useState<ApiUnidadEmision[]>([]);
+  const [emissionGroups, setEmissionGroups] = useState<ApiEmissionGroup[]>([]);
+  const [emissionSources, setEmissionSources] = useState<ApiEmissionSource[]>([]);
+  const [emissionSubsources, setEmissionSubsources] = useState<ApiEmissionSubsource[]>([]);
+  const [emissionUnits, setEmissionUnits] = useState<ApiEmissionUnit[]>([]);
 
-  const [modoCarga, setModoCarga] = useState<'Mensual' | 'Anual' | ''>('Anual');
+  const [registrationMode, setRegistrationMode] = useState<'bulk' | 'individual'>('bulk');
+  const [loadMode, setLoadMode] = useState<LoadMode | ''>('Annual');
+
+  // Bulk mode state
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvPreview, setCsvPreview] = useState<string[][]>([]);
+
+  // Individual mode state
+  const [individualItem, setIndividualItem] = useState('');
+  const [annualQuantity, setAnnualQuantity] = useState('');
+  const [monthlyValues, setMonthlyValues] = useState<string[]>(Array(12).fill(''));
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -80,35 +89,35 @@ export const CarbonFootprintForm = () => {
   const {
     register,
     handleSubmit,
-    watch,
     setValue,
     reset,
     formState: { errors },
+    control,
   } = useForm<CarbonFootprintFormData>({
     resolver: zodResolver(CarbonFootprintSchema),
-    defaultValues: { anio: new Date().getFullYear().toString() },
+    defaultValues: { year: new Date().getFullYear().toString() },
   });
 
-  const watchFuenteId = watch('fuenteEmisionId');
+  const watchSourceId = useWatch({
+    control,
+    name: 'emissionSourceId',
+  });
 
-  // Load initial catalogs and available analyses in parallel (grupos excluded — loaded per analysis)
+  // Load initial catalogs
   useEffect(() => {
     if (!activeCompany) return;
     const loadAll = async () => {
       try {
-        const [hq, fue, uni, availableAnalyses] = await Promise.all([
+        const [hq, sources, units, groups] = await Promise.all([
           CompanyService.getHeadquarters(activeCompany.id),
-          FuentesEmisionService.getAll(),
-          UnidadesEmisionService.getAll(),
-          CarbonFootprintAnalysisService.getAll({
-            empresaId: activeCompany.id,
-            estado: 'WithoutStarting',
-          }),
+          EmissionSourcesService.getAll(),
+          EmissionUnitsService.getAll(),
+          EmissionGroupsService.getAll(),
         ]);
         setBranches(hq);
-        setFuentes(fue);
-        setUnidades(uni);
-        setAnalyses(availableAnalyses);
+        setEmissionSources(sources);
+        setEmissionUnits(units);
+        setEmissionGroups(groups);
       } catch {
         toast.error('Error al cargar los catálogos');
       }
@@ -116,42 +125,23 @@ export const CarbonFootprintForm = () => {
     loadAll();
   }, [activeCompany]);
 
-  // When analysis changes: auto-fill year, reset grupo, and load grupos filtered by standard
-  useEffect(() => {
-    const analysis = analyses.find(a => a.id === selectedAnalysisId);
-    setValue('grupoEmisionId', undefined);
-    setAlcances([]);
 
-    if (!analysis) return;
 
-    setValue('anio', String(analysis.anio));
-
-    if (analysis.standard) {
-      GruposEmisionService.getAll({ standard: analysis.standard })
-        .then(setAlcances)
-        .catch(() => toast.error('Error al cargar los grupos de emisión'));
-    }
-  }, [selectedAnalysisId, analyses, setValue]);
-
-  // Load subfuentes and reset unidad when fuenteEmisionId changes
-  const loadSubfuentes = useCallback(async (fuenteEmisionId: string) => {
-    try {
-      const data = await SubfuentesEmisionService.getAll(fuenteEmisionId);
-      setSubfuentes(data);
-    } catch {
-      toast.error('Error al cargar las subfuentes de emisión');
-    }
-  }, []);
-
-  useEffect(() => {
-    setValue('unidadEmisionId', undefined);
-    if (watchFuenteId) {
-      setValue('subfuenteEmisionId', undefined);
-      loadSubfuentes(watchFuenteId);
+  // Handle emission source changes via event handler
+  const handleSourceChange = async (sourceId: string) => {
+    setValue('emissionUnitId', undefined);
+    setValue('emissionSubsourceId', '');
+    if (sourceId) {
+      try {
+        const data = await EmissionSubsourcesService.getAll({ emissionSourceId: sourceId });
+        setEmissionSubsources(data);
+      } catch {
+        toast.error('Error al cargar las subfuentes de emisión');
+      }
     } else {
-      setSubfuentes([]);
+      setEmissionSubsources([]);
     }
-  }, [watchFuenteId, setValue, loadSubfuentes]);
+  };
 
   const processFile = (file: File) => {
     const reader = new FileReader();
@@ -190,13 +180,19 @@ export const CarbonFootprintForm = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const onSubmit = async (data: CarbonFootprintFormData) => {
-    if (!selectedAnalysisId) {
-      toast.error('Debe seleccionar un análisis de huella de carbono al que cargar las emisiones.');
-      return;
+  const generateIndividualFile = (): File => {
+    let csv: string;
+    if (loadMode === 'Annual') {
+      csv = `item,cantidad\n${individualItem},${annualQuantity}`;
+    } else {
+      csv = `item,${MONTH_KEYS.join(',')}\n${individualItem},${monthlyValues.join(',')}`;
     }
-    if (!csvFile) {
-      toast.error('Debe cargar el archivo CSV con los datos de huella de carbono.');
+    return new File([csv], 'registro-individual.csv', { type: 'text/csv' });
+  };
+
+  const onSubmit = async (data: CarbonFootprintFormData) => {
+    if (!loadMode) {
+      toast.error('Debe seleccionar un formato (modo de carga).');
       return;
     }
     if (!activeCompany?.nit) {
@@ -204,40 +200,60 @@ export const CarbonFootprintForm = () => {
       return;
     }
 
+    if (registrationMode === 'bulk') {
+      if (!csvFile) {
+        toast.error('Debe cargar el archivo CSV con los datos de huella de carbono.');
+        return;
+      }
+    } else {
+      if (!individualItem.trim()) {
+        toast.error('Debe ingresar el ítem o descripción del registro.');
+        return;
+      }
+      if (loadMode === 'Annual' && !annualQuantity) {
+        toast.error('Debe ingresar el consumo anual.');
+        return;
+      }
+      if (loadMode === 'Monthly' && monthlyValues.every(v => !v)) {
+        toast.error('Debe ingresar al menos un valor mensual.');
+        return;
+      }
+    }
+
+    const fileToUpload = registrationMode === 'bulk' ? csvFile! : generateIndividualFile();
+
     setIsSubmitting(true);
     try {
-      await CarbonFootprintService.uploadCsv(csvFile, {
-        anio: data.anio,
+      await CarbonFootprintService.uploadCsv(fileToUpload, {
+        year: data.year,
         nit: activeCompany.nit,
-        sedeId: data.sedeId,
-        grupoEmisionId: data.grupoEmisionId,
-        fuenteEmisionId: data.fuenteEmisionId,
-        subfuenteEmisionId: data.subfuenteEmisionId,
-        unidadEmisionId: data.unidadEmisionId,
-        modoCarga: modoCarga || undefined,
+        headquarterId: data.headquarterId,
+        emissionGroupId: data.emissionGroupId!,
+        emissionSourceId: data.emissionSourceId,
+        emissionSubsourceId: data.emissionSubsourceId,
+        emissionUnitId: data.emissionUnitId,
       });
-      toast.success('Emisiones cargadas exitosamente');
+      toast.success('Emisiones registradas exitosamente');
       router.push('/huella-carbono');
       router.refresh();
     } catch {
-      toast.error('Error al cargar las emisiones');
+      toast.error('Error al registrar las emisiones');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const csvFormatHref =
-    modoCarga === 'Mensual'
+    loadMode === 'Monthly'
       ? '/formato-huella-mensual.csv'
-      : modoCarga === 'Anual'
+      : loadMode === 'Annual'
         ? '/formato-huella-anual.csv'
         : '#';
 
-  const selectedAnalysis = analyses.find(a => a.id === selectedAnalysisId);
-  const selectedFuente = fuentes.find(f => f.id === watchFuenteId);
-  const filteredUnidades = selectedFuente?.tipoUnidadId
-    ? unidades.filter(u => u.tipoUnidadId === selectedFuente.tipoUnidadId)
-    : unidades;
+  const selectedSource = emissionSources.find(s => s.id === watchSourceId);
+  const filteredUnits = selectedSource?.unitTypeId
+    ? emissionUnits.filter(u => u.unitTypeId === selectedSource.unitTypeId)
+    : emissionUnits;
 
   return (
     <div className="w-full space-y-4">
@@ -252,10 +268,36 @@ export const CarbonFootprintForm = () => {
             <ArrowLeft size={24} />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-zinc-900">Registro de Huella de Carbono</h1>
-            <p className="text-sm text-zinc-500">Complete la información para cargar o calcular emisiones.</p>
+            <h1 className="text-xl font-bold text-zinc-900">Registro de Emisiones de Huella de Carbono</h1>
+            <p className="text-sm text-zinc-500">Complete la información para cargar las emisiones.</p>
           </div>
         </div>
+      </div>
+
+      {/* Mode toggle */}
+      <div className="flex gap-2 p-1 bg-zinc-100 rounded-xl w-fit">
+        <button
+          type="button"
+          onClick={() => setRegistrationMode('bulk')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+            registrationMode === 'bulk'
+              ? 'bg-white text-zinc-900 shadow-sm'
+              : 'text-zinc-500 hover:text-zinc-700'
+          }`}
+        >
+          <FileSpreadsheet size={16} /> Masivo (CSV)
+        </button>
+        <button
+          type="button"
+          onClick={() => setRegistrationMode('individual')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+            registrationMode === 'individual'
+              ? 'bg-white text-zinc-900 shadow-sm'
+              : 'text-zinc-500 hover:text-zinc-700'
+          }`}
+        >
+          <FilePlus size={16} /> Individual
+        </button>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -267,32 +309,6 @@ export const CarbonFootprintForm = () => {
             <h2 className="font-bold text-sm text-zinc-900">Identificación</h2>
           </div>
           <div className="p-4 space-y-4">
-            {/* Analysis selector — full width */}
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-zinc-700">
-                Análisis de huella de carbono <span className="text-red-500">*</span>
-              </label>
-              {analyses.length === 0 ? (
-                <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-sm">
-                  <span className="font-bold">Sin análisis disponibles.</span>
-                  No existen análisis en estado &quot;Sin Iniciar&quot;. Crea uno desde la sección de Análisis antes de cargar emisiones.
-                </div>
-              ) : (
-                <select
-                  value={selectedAnalysisId}
-                  onChange={(e) => setSelectedAnalysisId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm"
-                >
-                  <option value="">Seleccione un análisis</option>
-                  {analyses.map(a => (
-                    <option key={a.id} value={a.id}>
-                      {a.anio} — {a.standard === 'GHG_Protocol' ? 'GHG Protocol' : 'ISO 14064'}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-zinc-700">Empresa</label>
@@ -308,7 +324,7 @@ export const CarbonFootprintForm = () => {
                   Sede <span className="text-red-500">*</span>
                 </label>
                 <select
-                  {...register('sedeId')}
+                  {...register('headquarterId')}
                   disabled={branches.length === 0}
                   className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm disabled:bg-zinc-50 disabled:text-zinc-400"
                 >
@@ -317,20 +333,27 @@ export const CarbonFootprintForm = () => {
                     <option key={b.id} value={b.id}>{b.name}</option>
                   ))}
                 </select>
-                {errors.sedeId && <p className="text-xs text-red-500">{errors.sedeId.message}</p>}
+                {errors.headquarterId && (
+                  <p className="text-xs text-red-500">{errors.headquarterId.message}</p>
+                )}
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-zinc-700">Año de reporte</label>
-                <input
-                  readOnly
-                  value={
-                    selectedAnalysisId
-                      ? (analyses.find(a => a.id === selectedAnalysisId)?.anio ?? '')
-                      : 'Seleccione un análisis'
-                  }
-                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-500 outline-none text-sm cursor-not-allowed"
-                />
+                <label className="text-sm font-semibold text-zinc-700">
+                  Año de reporte <span className="text-red-500">*</span>
+                </label>
+                <select
+                  {...register('year')}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm bg-white"
+                >
+                  <option value="">Seleccione el año</option>
+                  {Array.from({ length: 10 }, (_, i) => String(new Date().getFullYear() - i)).map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+                {errors.year && (
+                  <p className="text-xs text-red-500">{errors.year.message}</p>
+                )}
               </div>
             </div>
           </div>
@@ -342,106 +365,162 @@ export const CarbonFootprintForm = () => {
             <div className="flex items-center gap-2">
               <Upload className="text-teal-600" size={18} />
               <h2 className="font-bold text-sm text-zinc-900">
-                Carga de datos <span className="text-red-500">*</span>
+                {registrationMode === 'bulk' ? 'Carga masiva (CSV)' : 'Registro individual'}
+                <span className="text-red-500 ml-1">*</span>
               </h2>
             </div>
             <div className="flex items-center gap-3">
               <select
-                value={modoCarga}
-                onChange={(e) => setModoCarga(e.target.value as 'Mensual' | 'Anual' | '')}
+                value={loadMode}
+                onChange={(e) => { setLoadMode(e.target.value as LoadMode | ''); setMonthlyValues(Array(12).fill('')); }}
                 className="px-3 py-1.5 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-xs bg-white font-semibold text-zinc-700"
               >
-                <option value="">Seleccione formato (Modo de carga)</option>
-                {MODOS_CARGA.map(p => (
-                  <option key={p} value={p}>{p}</option>
+                <option value="">Modo de carga</option>
+                {LOAD_MODES.map(m => (
+                  <option key={m} value={m}>{m === 'Monthly' ? 'Mensual' : 'Anual'}</option>
                 ))}
               </select>
-              <a
-                href={csvFormatHref}
-                download
-                className={`flex items-center gap-1.5 text-xs font-bold transition-colors ${modoCarga
+              {registrationMode === 'bulk' && (
+                <a
+                  href={csvFormatHref}
+                  download
+                  className={`flex items-center gap-1.5 text-xs font-bold transition-colors ${loadMode
                     ? 'text-teal-600 hover:text-teal-700 hover:underline'
                     : 'text-zinc-300 cursor-not-allowed pointer-events-none'
                   }`}
-              >
-                <Download size={14} /> Descargar formato CSV
-              </a>
+                >
+                  <Download size={14} /> Descargar formato
+                </a>
+              )}
             </div>
           </div>
-          <div className="p-4 space-y-3">
 
-            <div
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${csvFile
-                  ? 'border-teal-500 bg-teal-50/20'
-                  : 'border-zinc-200 bg-zinc-50 hover:border-teal-400'
+          {registrationMode === 'bulk' ? (
+            <div className="p-4 space-y-3">
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+                  csvFile ? 'border-teal-500 bg-teal-50/20' : 'border-zinc-200 bg-zinc-50 hover:border-teal-400'
                 }`}
-            >
-              {csvFile ? (
-                <div className="flex flex-col items-center gap-2">
-                  <CheckCircle2 className="text-teal-500" size={32} />
-                  <span className="font-bold text-teal-900">{csvFile.name}</span>
-                  <span className="text-xs text-zinc-500">{csvPreview.length - 1} registros detectados</span>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-2">
-                  <FileText className="text-zinc-400" size={32} />
-                  <p className="text-sm font-semibold text-zinc-700">
-                    Arrastra tu archivo CSV aquí o haz clic para seleccionar
-                  </p>
-                  <span className="text-xs text-zinc-500">Solo archivos .csv admitidos</span>
+              >
+                {csvFile ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <CheckCircle2 className="text-teal-500" size={32} />
+                    <span className="font-bold text-teal-900">{csvFile.name}</span>
+                    <span className="text-xs text-zinc-500">{csvPreview.length - 1} registros detectados</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <FileText className="text-zinc-400" size={32} />
+                    <p className="text-sm font-semibold text-zinc-700">
+                      Arrastra tu archivo CSV aquí o haz clic para seleccionar
+                    </p>
+                    <span className="text-xs text-zinc-500">Solo archivos .csv admitidos</span>
+                  </div>
+                )}
+              </div>
+              <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".csv" className="hidden" />
+
+              {csvPreview.length > 0 && (
+                <div className="border border-zinc-200 rounded-lg overflow-hidden">
+                  <div className="flex justify-between items-center bg-zinc-50 p-2 px-4 border-b border-zinc-200">
+                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                      Vista Previa (5 filas)
+                    </span>
+                    <button type="button" onClick={removeCsv} className="text-red-500 hover:text-red-600 text-xs font-bold flex items-center gap-1">
+                      <X size={14} /> Eliminar
+                    </button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="bg-zinc-50">
+                          {csvPreview[0].map((h, i) => (
+                            <th key={i} className="p-3 font-semibold text-zinc-600 border-b border-zinc-200">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100">
+                        {csvPreview.slice(1, 6).map((row, i) => (
+                          <tr key={i} className="hover:bg-zinc-50/50">
+                            {row.map((cell, j) => (
+                              <td key={j} className="p-3 text-zinc-600">{cell}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept=".csv"
-              className="hidden"
-            />
-
-            {csvPreview.length > 0 && (
-              <div className="mt-4 border border-zinc-200 rounded-lg overflow-hidden">
-                <div className="flex justify-between items-center bg-zinc-50 p-2 px-4 border-b border-zinc-200">
-                  <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                    Vista Previa (5 filas)
-                  </span>
-                  <button
-                    type="button"
-                    onClick={removeCsv}
-                    className="text-red-500 hover:text-red-600 text-xs font-bold flex items-center gap-1"
-                  >
-                    <X size={14} /> Eliminar
-                  </button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="bg-zinc-50">
-                        {csvPreview[0].map((h, i) => (
-                          <th key={i} className="p-3 font-semibold text-zinc-600 border-b border-zinc-200">
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-100">
-                      {csvPreview.slice(1, 6).map((row, i) => (
-                        <tr key={i} className="hover:bg-zinc-50/50">
-                          {row.map((cell, j) => (
-                            <td key={j} className="p-3 text-zinc-600">{cell}</td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+          ) : (
+            <div className="p-4 space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-zinc-700">
+                  Ítem / Descripción <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={individualItem}
+                  onChange={(e) => setIndividualItem(e.target.value)}
+                  placeholder="Ej: Gasolina corriente"
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm"
+                />
               </div>
-            )}
-          </div>
+
+              {loadMode === 'Annual' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-zinc-700">
+                    Consumo anual <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={annualQuantity}
+                    onChange={(e) => setAnnualQuantity(e.target.value)}
+                    placeholder="0"
+                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm"
+                  />
+                </div>
+              )}
+
+              {loadMode === 'Monthly' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-zinc-700">
+                    Consumo mensual <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {MONTH_LABELS.map((month, i) => (
+                      <div key={month} className="space-y-1">
+                        <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wide">{month}</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={monthlyValues[i]}
+                          onChange={(e) => {
+                            const updated = [...monthlyValues];
+                            updated[i] = e.target.value;
+                            setMonthlyValues(updated);
+                          }}
+                          placeholder="0"
+                          className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {!loadMode && (
+                <p className="text-sm text-zinc-400 italic">Seleccione el modo de carga (Mensual / Anual) para ingresar los datos.</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Detalles de emisión */}
@@ -453,19 +532,22 @@ export const CarbonFootprintForm = () => {
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-zinc-700">Grupo de Emisiones</label>
+              <label className="text-sm font-semibold text-zinc-700">
+                Grupo de Emisiones <span className="text-red-500">*</span>
+              </label>
               <select
-                {...register('grupoEmisionId')}
-                disabled={alcances.length === 0}
+                {...register('emissionGroupId')}
+                disabled={emissionGroups.length === 0}
                 className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm disabled:bg-zinc-50 disabled:text-zinc-400"
               >
-                <option value="">
-                  {!selectedAnalysisId ? 'Seleccione un análisis primero' : 'Seleccione'}
-                </option>
-                {alcances.map(a => (
-                  <option key={a.id} value={a.id}>{a.nombre}</option>
+                <option value="">Seleccione</option>
+                {emissionGroups.map(g => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
                 ))}
               </select>
+              {errors.emissionGroupId && (
+                <p className="text-xs text-red-500">{errors.emissionGroupId.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -473,60 +555,67 @@ export const CarbonFootprintForm = () => {
                 Fuente de emisión <span className="text-red-500">*</span>
               </label>
               <select
-                {...register('fuenteEmisionId')}
-                disabled={fuentes.length === 0}
+                {...register('emissionSourceId', {
+                  onChange: (e) => handleSourceChange(e.target.value)
+                })}
+                disabled={emissionSources.length === 0}
                 className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm disabled:bg-zinc-50 disabled:text-zinc-400"
               >
                 <option value="">Seleccione</option>
-                {fuentes.map(f => (
-                  <option key={f.id} value={f.id}>{f.nombre}</option>
+                {emissionSources.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
-              {errors.fuenteEmisionId && (
-                <p className="text-xs text-red-500">{errors.fuenteEmisionId.message}</p>
+              {errors.emissionSourceId && (
+                <p className="text-xs text-red-500">{errors.emissionSourceId.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-zinc-700">
+                Subfuente de emisión <span className="text-red-500">*</span>
+              </label>
+              <select
+                {...register('emissionSubsourceId')}
+                disabled={!watchSourceId || emissionSubsources.length === 0}
+                className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm disabled:bg-zinc-50 disabled:text-zinc-400"
+              >
+                <option value="">
+                  {!watchSourceId ? 'Seleccione una fuente primero' : 'Seleccione'}
+                </option>
+                {emissionSubsources.map(ss => (
+                  <option key={ss.id} value={ss.id}>{ss.name}</option>
+                ))}
+              </select>
+              {errors.emissionSubsourceId && (
+                <p className="text-xs text-red-500">{errors.emissionSubsourceId.message}</p>
               )}
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-semibold text-zinc-700">
                 Unidad de medida
-                {selectedFuente?.tipoUnidad && (
+                {selectedSource?.unitType && (
                   <span className="ml-2 text-[10px] font-normal text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded-full">
-                    {selectedFuente.tipoUnidad.nombre}
+                    {selectedSource.unitType.name}
                   </span>
                 )}
               </label>
               <select
-                {...register('unidadEmisionId')}
-                disabled={filteredUnidades.length === 0}
+                {...register('emissionUnitId')}
+                disabled={filteredUnits.length === 0}
                 className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm disabled:bg-zinc-50 disabled:text-zinc-400"
               >
                 <option value="">
-                  {!watchFuenteId ? 'Seleccione una fuente primero' : 'Seleccione'}
+                  {!watchSourceId ? 'Seleccione una fuente primero' : 'Seleccione'}
                 </option>
-                {filteredUnidades.map(u => (
+                {filteredUnits.map(u => (
                   <option key={u.id} value={u.id}>
-                    {u.nombre} ({u.simbolo})
+                    {u.name} ({u.symbol})
                   </option>
                 ))}
               </select>
             </div>
-
-            {watchFuenteId && (
-              <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                <label className="text-sm font-semibold text-zinc-700">Subfuente de emisión</label>
-                <select
-                  {...register('subfuenteEmisionId')}
-                  disabled={subfuentes.length === 0}
-                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm disabled:bg-zinc-50 disabled:text-zinc-400"
-                >
-                  <option value="">Seleccione</option>
-                  {subfuentes.map(sf => (
-                    <option key={sf.id} value={sf.id}>{sf.nombre}</option>
-                  ))}
-                </select>
-              </div>
-            )}
           </div>
         </div>
 
@@ -540,7 +629,7 @@ export const CarbonFootprintForm = () => {
         <div className="flex flex-wrap items-center justify-end gap-3 pt-4">
           <button
             type="button"
-            onClick={() => { reset(); removeCsv(); setModoCarga(''); }}
+            onClick={() => { reset(); removeCsv(); setLoadMode(''); setIndividualItem(''); setAnnualQuantity(''); setMonthlyValues(Array(12).fill('')); }}
             className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-zinc-600 bg-white border border-zinc-200 rounded-full hover:bg-zinc-50 transition-colors"
           >
             <RefreshCw size={16} /> Limpiar
@@ -551,11 +640,7 @@ export const CarbonFootprintForm = () => {
             disabled={isSubmitting}
             className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white bg-teal-600 rounded-full hover:bg-teal-700 shadow-md shadow-teal-500/20 transition-all active:scale-95 disabled:opacity-50"
           >
-            {isSubmitting ? (
-              <RefreshCw size={16} className="animate-spin" />
-            ) : (
-              <Save size={16} />
-            )}
+            {isSubmitting ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
             {isSubmitting ? 'Registrando...' : 'Registrar emisiones'}
           </button>
         </div>

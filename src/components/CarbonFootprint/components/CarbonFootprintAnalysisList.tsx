@@ -26,6 +26,7 @@ import { CarbonFootprintAnalysisService } from '../services/carbonFootprintAnaly
 import { CarbonFootprintService } from '../services/carbonFootprint.service';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import Swal from 'sweetalert2';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const AVAILABLE_YEARS = Array.from({ length: 10 }, (_, i) => String(CURRENT_YEAR - i));
@@ -70,11 +71,11 @@ export const CarbonFootprintAnalysisList = () => {
     setLoading(true);
     try {
       const [analysisList, records] = await Promise.all([
-        CarbonFootprintAnalysisService.getAll({ empresaId: activeCompany.id }),
-        CarbonFootprintService.getCarbonFootprints({ empresaId: activeCompany.id }),
+        CarbonFootprintAnalysisService.getAll({ companyId: activeCompany.id }),
+        CarbonFootprintService.getCarbonFootprints({ companyId: activeCompany.id }),
       ]);
       setAnalyses(analysisList);
-      setEmissionYears(new Set(records.map(r => String(r.anio))));
+      setEmissionYears(new Set(records.map(r => String(r.year))));
     } catch {
       toast.error('Error al cargar los análisis');
     } finally {
@@ -83,24 +84,35 @@ export const CarbonFootprintAnalysisList = () => {
   }, [activeCompany]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
   }, [loadData]);
 
-  const yearHasAnalysis = (anio: string) =>
-    analyses.some(a => String(a.anio) === anio);
+  const hasAnalysisWithYearAndStandard = (
+    anio: string,
+    standard: CarbonFootprintAnalysisStandard,
+  ) =>
+    analyses.some(
+      a =>
+        String(a.year) === anio &&
+        a.standard === standard &&
+        a.status !== 'Deleted'
+    );
 
   const handleGenerateAnalysis = async () => {
     if (!activeCompany) return;
-    if (yearHasAnalysis(modalYear)) {
-      toast.error(`Ya existe un análisis para el año ${modalYear}`);
+    if (hasAnalysisWithYearAndStandard(modalYear, modalStandard)) {
+      const standardText =
+        modalStandard === 'GHG_Protocol' ? 'GHG Protocol' : 'ISO 14064';
+      toast.error(
+        `Ya existe un análisis para el año ${modalYear} con el estándar ${standardText}`
+      );
       return;
     }
     setIsCreating(true);
     try {
       const created = await CarbonFootprintAnalysisService.create({
-        empresaId: activeCompany.id,
-        anio: parseInt(modalYear, 10),
+        companyId: activeCompany.id,
+        year: parseInt(modalYear, 10),
         standard: modalStandard,
       });
       setAnalyses(prev => [created, ...prev]);
@@ -114,35 +126,72 @@ export const CarbonFootprintAnalysisList = () => {
   };
 
   const handleInitialize = async (analysis: ApiCarbonFootprintAnalysis) => {
-    if (!confirm('¿Inicializar el análisis y generar el informe?')) return;
+    const hasRecords = emissionYears.has(String(analysis.year));
+    if (!hasRecords) {
+      toast.error(
+        `No se puede iniciar el análisis: no existen registros de emisiones cargados para el año ${analysis.year}.`
+      );
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: '¿Inicializar el análisis?',
+      text: `Se procesarán las emisiones cargadas para el año ${analysis.year} y se generará el informe de Huella de Carbono.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, iniciar análisis',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#0d9488', // teal-600 to match the app theme
+      cancelButtonColor: '#71717a', // zinc-500
+      reverseButtons: true,
+    });
+
+    if (!result.isConfirmed) return;
+
     setUpdatingId(analysis.id);
     try {
       const updated = await CarbonFootprintAnalysisService.initialize(analysis.id);
       setAnalyses(prev => prev.map(a => (a.id === analysis.id ? updated : a)));
-      toast.success(`Análisis del año ${analysis.anio} inicializado`);
-    } catch {
-      toast.error('Error al inicializar el análisis');
+      toast.success(`Análisis del año ${analysis.year} inicializado`);
+    } catch (err) {
+      const errMsg =
+        err instanceof Error ? err.message : 'Error al inicializar el análisis';
+      toast.error(errMsg);
     } finally {
       setUpdatingId(null);
     }
   };
 
   const handleDelete = async (analysis: ApiCarbonFootprintAnalysis) => {
-    if (!confirm(`¿Estás seguro de eliminar el análisis del año ${analysis.anio}? Esta acción no se puede deshacer.`))
-      return;
+    const standardText = analysis.standard === 'GHG_Protocol' ? 'GHG Protocol' : 'ISO 14064';
+    const result = await Swal.fire({
+      title: '¿Eliminar análisis?',
+      text: `¿Estás seguro de eliminar el análisis del año ${analysis.year} con el estándar ${standardText}? Esta acción no se puede deshacer y borrará el informe generado.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#dc2626', // red-600
+      cancelButtonColor: '#71717a', // zinc-500
+      reverseButtons: true,
+    });
+
+    if (!result.isConfirmed) return;
+
     setDeletingId(analysis.id);
     try {
       await CarbonFootprintAnalysisService.delete(analysis.id);
-      setAnalyses(prev => prev.filter(a => a.id !== analysis.id));
-      toast.success(`Análisis del año ${analysis.anio} eliminado`);
-    } catch {
-      toast.error('Error al eliminar el análisis');
+      setAnalyses(prev => prev.map(a => a.id === analysis.id ? { ...a, status: 'Deleted' } : a));
+      toast.success(`Análisis del año ${analysis.year} (${standardText}) eliminado exitosamente`);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'Error al eliminar el análisis';
+      toast.error(errMsg);
     } finally {
       setDeletingId(null);
     }
   };
 
-  const uniqueAnios = [...new Set(analyses.map(a => String(a.anio)))].sort().reverse();
+  const uniqueAnios = [...new Set(analyses.map(a => String(a.year)))].sort().reverse();
   const activeFiltersCount = [filterAnio, filterEstado].filter(Boolean).length;
 
   const clearFilters = () => {
@@ -153,11 +202,11 @@ export const CarbonFootprintAnalysisList = () => {
 
   const filteredAnalyses = analyses.filter(a => {
     const matchSearch =
-      !searchTerm || String(a.anio).includes(searchTerm);
+      !searchTerm || String(a.year).includes(searchTerm);
     return (
       matchSearch &&
-      (!filterAnio || String(a.anio) === filterAnio) &&
-      (!filterEstado || a.estado === filterEstado)
+      (!filterAnio || String(a.year) === filterAnio) &&
+      (!filterEstado || a.status === filterEstado)
     );
   });
 
@@ -176,6 +225,13 @@ export const CarbonFootprintAnalysisList = () => {
         </span>
       );
     }
+    if (estado === 'Deleted') {
+      return (
+        <span className="flex items-center gap-1.5 w-max px-3 py-1 bg-red-50 text-red-700 border border-red-200 rounded-full text-xs font-bold">
+          <TriangleAlert size={14} /> Eliminado
+        </span>
+      );
+    }
     return (
       <span className="flex items-center gap-1.5 w-max px-3 py-1 bg-zinc-100 text-zinc-600 border border-zinc-200 rounded-full text-xs font-bold">
         <Clock size={14} /> Sin Iniciar
@@ -183,7 +239,7 @@ export const CarbonFootprintAnalysisList = () => {
     );
   };
 
-  const modalConflict = yearHasAnalysis(modalYear);
+  const modalConflict = hasAnalysisWithYearAndStandard(modalYear, modalStandard);
   const modalHasRecords = emissionYears.has(modalYear);
 
   return (
@@ -278,9 +334,10 @@ export const CarbonFootprintAnalysisList = () => {
                   className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none bg-white"
                 >
                   <option value="">Todos los estados</option>
-                  <option value="WithoutStarting">Sin Iniciar</option>
+                  <option value="NotStarted">Sin Iniciar</option>
                   <option value="Processing">En Proceso</option>
                   <option value="Successful">Completado</option>
+                  <option value="Deleted">Eliminado</option>
                 </select>
               </div>
             </div>
@@ -294,6 +351,7 @@ export const CarbonFootprintAnalysisList = () => {
               <tr className="bg-zinc-50/80 border-b border-zinc-100">
                 <th className="px-6 py-4 font-semibold text-zinc-600 whitespace-nowrap">Empresa</th>
                 <th className="px-6 py-4 font-semibold text-zinc-600 whitespace-nowrap">Año</th>
+                <th className="px-6 py-4 font-semibold text-zinc-600 whitespace-nowrap">Estándar</th>
                 <th className="px-6 py-4 font-semibold text-zinc-600 whitespace-nowrap">Estado</th>
                 <th className="px-6 py-4 font-semibold text-zinc-600 whitespace-nowrap">Creado</th>
                 <th className="px-6 py-4 font-semibold text-zinc-600 text-right whitespace-nowrap">Acciones</th>
@@ -302,14 +360,14 @@ export const CarbonFootprintAnalysisList = () => {
             <tbody className="divide-y divide-zinc-100">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-zinc-400">
+                  <td colSpan={6} className="px-6 py-10 text-center text-zinc-400">
                     <RefreshCw size={20} className="animate-spin mx-auto mb-2" />
                     Cargando análisis...
                   </td>
                 </tr>
               ) : filteredAnalyses.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
+                  <td colSpan={6} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center">
                         <Leaf className="text-blue-500" size={24} />
@@ -317,7 +375,7 @@ export const CarbonFootprintAnalysisList = () => {
                       <div className="space-y-1">
                         <h3 className="font-semibold text-zinc-900">No hay análisis generados</h3>
                         <p className="text-zinc-500 text-sm">
-                          Haz clic en "Crear Análisis" para crear uno nuevo.
+                          Haz clic en &quot;Crear Análisis&quot; para crear uno nuevo.
                         </p>
                       </div>
                     </div>
@@ -331,10 +389,15 @@ export const CarbonFootprintAnalysisList = () => {
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-2.5 py-1 bg-zinc-100 text-zinc-700 rounded-md text-xs font-medium">
-                        {analysis.anio}
+                        {analysis.year}
                       </span>
                     </td>
-                    <td className="px-6 py-4">{getStatusBadge(analysis.estado)}</td>
+                    <td className="px-6 py-4">
+                      <span className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-xs font-semibold">
+                        {analysis.standard === 'GHG_Protocol' ? 'GHG Protocol' : 'ISO 14064'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">{getStatusBadge(analysis.status)}</td>
                     <td className="px-6 py-4 text-zinc-500 text-xs">
                       {analysis.createdAt
                         ? new Date(analysis.createdAt).toLocaleDateString('es-CO', {
@@ -346,7 +409,7 @@ export const CarbonFootprintAnalysisList = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {analysis.estado === 'Successful' ? (
+                        {analysis.status === 'Successful' ? (
                           <button
                             onClick={() => router.push(`/huella-carbono/analisis/resultados/${analysis.id}`)}
                             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
@@ -354,10 +417,14 @@ export const CarbonFootprintAnalysisList = () => {
                             <BarChart2 size={14} />
                             Ver Resultados
                           </button>
-                        ) : analysis.estado === 'Processing' ? (
+                        ) : analysis.status === 'Processing' ? (
                           <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold text-blue-600 bg-blue-50">
                             <Loader2 size={14} className="animate-spin" />
                             Procesando...
+                          </span>
+                        ) : analysis.status === 'Deleted' ? (
+                          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold text-red-500 bg-red-50">
+                            Eliminado
                           </span>
                         ) : (
                           <button
@@ -378,18 +445,20 @@ export const CarbonFootprintAnalysisList = () => {
                             )}
                           </button>
                         )}
-                        <button
-                          onClick={() => handleDelete(analysis)}
-                          disabled={deletingId === analysis.id}
-                          className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 opacity-0 group-hover:opacity-100"
-                          title="Eliminar análisis"
-                        >
-                          {deletingId === analysis.id ? (
-                            <Loader2 size={15} className="animate-spin" />
-                          ) : (
-                            <Trash2 size={15} />
-                          )}
-                        </button>
+                        {analysis.status !== 'Deleted' && (
+                          <button
+                            onClick={() => handleDelete(analysis)}
+                            disabled={deletingId === analysis.id}
+                            className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 opacity-0 group-hover:opacity-100"
+                            title="Eliminar análisis"
+                          >
+                            {deletingId === analysis.id ? (
+                              <Loader2 size={15} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={15} />
+                            )}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -474,8 +543,10 @@ export const CarbonFootprintAnalysisList = () => {
               <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
                 <TriangleAlert size={16} className="mt-0.5 shrink-0 text-red-500" />
                 <p>
-                  Ya existe un análisis para el año <span className="font-bold">{modalYear}</span>.
-                  Para crear uno nuevo, elimine el existente primero.
+                  Ya existe un análisis para el año <span className="font-bold">{modalYear}</span> con el estándar{' '}
+                  <span className="font-bold">
+                    {modalStandard === 'GHG_Protocol' ? 'GHG Protocol' : 'ISO 14064'}
+                  </span>. Para crear uno nuevo, elimine el existente primero.
                 </p>
               </div>
             ) : !modalHasRecords ? (

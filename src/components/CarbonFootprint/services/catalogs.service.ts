@@ -1,144 +1,135 @@
 import { apiFetch } from '@/shared/lib/api-client';
 import {
-  ApiTipoUnidad,
-  ApiGrupoEmision,
-  ApiFuenteEmision,
-  ApiSubfuenteEmision,
-  ApiUnidadEmision,
+  ApiUnitType,
+  ApiEmissionGroup,
+  ApiEmissionSource,
+  ApiEmissionSubsource,
+  ApiEmissionUnit,
   ApiEmissionFactor,
   CarbonFootprintAnalysisStandard,
-  CreateTipoUnidadPayload,
-  UpdateTipoUnidadPayload,
-  CreateGrupoEmisionPayload,
-  UpdateGrupoEmisionPayload,
-  CreateFuenteEmisionPayload,
-  UpdateFuenteEmisionPayload,
-  CreateSubfuenteEmisionPayload,
-  UpdateSubfuenteEmisionPayload,
-  CreateUnidadEmisionPayload,
-  UpdateUnidadEmisionPayload,
+  CreateUnitTypePayload,
+  UpdateUnitTypePayload,
+  CreateEmissionGroupPayload,
+  UpdateEmissionGroupPayload,
+  CreateEmissionSourcePayload,
+  UpdateEmissionSourcePayload,
+  CreateEmissionSubsourcePayload,
+  UpdateEmissionSubsourcePayload,
+  CreateEmissionUnitPayload,
+  UpdateEmissionUnitPayload,
   CreateEmissionFactorPayload,
   UpdateEmissionFactorPayload,
 } from '../types';
 
-// ── Tipos de Unidad ──────────────────────────────────────────────────────────
+// ── Unit Types ───────────────────────────────────────────────────────────────
 
-export class TiposUnidadService {
-  static async getAll(search?: string): Promise<ApiTipoUnidad[]> {
-    const res = await apiFetch<ApiTipoUnidad[]>('/api/tipos-unidad', {
+export class UnitTypesService {
+  static async getAll(search?: string): Promise<ApiUnitType[]> {
+    const res = await apiFetch<ApiUnitType[]>('/api/unit-types', {
       params: { limit: 100, search },
     });
     return res ?? [];
   }
 
-  static async getById(id: string): Promise<ApiTipoUnidad | null> {
-    return apiFetch<ApiTipoUnidad>(`/api/tipos-unidad/${id}`);
+  static async getById(id: string): Promise<ApiUnitType | null> {
+    return apiFetch<ApiUnitType>(`/api/unit-types/${id}`);
   }
 
-  static async create(data: CreateTipoUnidadPayload): Promise<ApiTipoUnidad> {
-    return apiFetch<ApiTipoUnidad>('/api/tipos-unidad', {
-      method: 'POST',
-      body: data,
-    });
+  static async create(data: CreateUnitTypePayload): Promise<ApiUnitType> {
+    return apiFetch<ApiUnitType>('/api/unit-types', { method: 'POST', body: data });
   }
 
-  static async update(id: string, data: UpdateTipoUnidadPayload): Promise<ApiTipoUnidad> {
-    return apiFetch<ApiTipoUnidad>(`/api/tipos-unidad/${id}`, {
-      method: 'PUT',
-      body: data,
-    });
+  static async update(id: string, data: UpdateUnitTypePayload): Promise<ApiUnitType> {
+    return apiFetch<ApiUnitType>(`/api/unit-types/${id}`, { method: 'PUT', body: data });
   }
 
   static async delete(id: string): Promise<void> {
-    await apiFetch<void>(`/api/tipos-unidad/${id}`, { method: 'DELETE' });
+    await apiFetch<void>(`/api/unit-types/${id}`, { method: 'DELETE' });
   }
 }
 
-// ── Grupos de Emisión ────────────────────────────────────────────────────────
+// ── Emission Groups ──────────────────────────────────────────────────────────
 
-export class GruposEmisionService {
+export class EmissionGroupsService {
   static async getAll(params?: {
     standard?: CarbonFootprintAnalysisStandard;
     search?: string;
-  }): Promise<ApiGrupoEmision[]> {
-    const res = await apiFetch<ApiGrupoEmision[]>('/api/grupos-emision', {
+  }): Promise<ApiEmissionGroup[]> {
+    const res = await apiFetch<ApiEmissionGroup[]>('/api/emission-groups', {
       params: { limit: 100, ...params },
     });
     return res ?? [];
   }
 
-  static async getById(id: string): Promise<ApiGrupoEmision | null> {
-    return apiFetch<ApiGrupoEmision>(`/api/grupos-emision/${id}`);
+  static async getById(id: string): Promise<ApiEmissionGroup | null> {
+    return apiFetch<ApiEmissionGroup>(`/api/emission-groups/${id}`);
   }
 
-  static async create(data: CreateGrupoEmisionPayload): Promise<ApiGrupoEmision> {
-    return apiFetch<ApiGrupoEmision>('/api/grupos-emision', {
-      method: 'POST',
-      body: data,
+  static async create(data: CreateEmissionGroupPayload): Promise<ApiEmissionGroup> {
+    return apiFetch<ApiEmissionGroup>('/api/emission-groups', { method: 'POST', body: data });
+  }
+
+  static async update(id: string, data: UpdateEmissionGroupPayload): Promise<ApiEmissionGroup> {
+    return apiFetch<ApiEmissionGroup>(`/api/emission-groups/${id}`, { method: 'PUT', body: data });
+  }
+
+  static async delete(id: string): Promise<void> {
+    await apiFetch<void>(`/api/emission-groups/${id}`, { method: 'DELETE' });
+  }
+}
+
+// ── Emission Sources ─────────────────────────────────────────────────────────
+
+export class EmissionSourcesService {
+  static async getAll(params?: {
+    unitTypeId?: string;
+    search?: string;
+  }): Promise<ApiEmissionSource[]> {
+    const res = await apiFetch<ApiEmissionSource[]>('/api/emission-sources', {
+      params: { limit: 100, ...params },
     });
+    return res ?? [];
   }
 
-  static async update(id: string, data: UpdateGrupoEmisionPayload): Promise<ApiGrupoEmision> {
-    return apiFetch<ApiGrupoEmision>(`/api/grupos-emision/${id}`, {
+  static async getById(id: string): Promise<ApiEmissionSource | null> {
+    return apiFetch<ApiEmissionSource>(`/api/emission-sources/${id}`);
+  }
+
+  static async create(data: CreateEmissionSourcePayload): Promise<ApiEmissionSource> {
+    return apiFetch<ApiEmissionSource>('/api/emission-sources', { method: 'POST', body: data });
+  }
+
+  static async update(id: string, data: UpdateEmissionSourcePayload): Promise<ApiEmissionSource> {
+    return apiFetch<ApiEmissionSource>(`/api/emission-sources/${id}`, {
       method: 'PUT',
       body: data,
     });
   }
 
   static async delete(id: string): Promise<void> {
-    await apiFetch<void>(`/api/grupos-emision/${id}`, { method: 'DELETE' });
+    await apiFetch<void>(`/api/emission-sources/${id}`, { method: 'DELETE' });
   }
 }
 
-// ── Fuentes de Emisión ───────────────────────────────────────────────────────
+// ── Emission Subsources ──────────────────────────────────────────────────────
 
-export class FuentesEmisionService {
-  static async getAll(search?: string): Promise<ApiFuenteEmision[]> {
-    const res = await apiFetch<ApiFuenteEmision[]>('/api/fuentes-emision', {
-      params: { limit: 100, search },
+export class EmissionSubsourcesService {
+  static async getAll(params?: {
+    emissionSourceId?: string;
+    search?: string;
+  }): Promise<ApiEmissionSubsource[]> {
+    const res = await apiFetch<ApiEmissionSubsource[]>('/api/emission-subsources', {
+      params: { limit: 100, ...params },
     });
     return res ?? [];
   }
 
-  static async getById(id: string): Promise<ApiFuenteEmision | null> {
-    return apiFetch<ApiFuenteEmision>(`/api/fuentes-emision/${id}`);
+  static async getById(id: string): Promise<ApiEmissionSubsource | null> {
+    return apiFetch<ApiEmissionSubsource>(`/api/emission-subsources/${id}`);
   }
 
-  static async create(data: CreateFuenteEmisionPayload): Promise<ApiFuenteEmision> {
-    return apiFetch<ApiFuenteEmision>('/api/fuentes-emision', {
-      method: 'POST',
-      body: data,
-    });
-  }
-
-  static async update(id: string, data: UpdateFuenteEmisionPayload): Promise<ApiFuenteEmision> {
-    return apiFetch<ApiFuenteEmision>(`/api/fuentes-emision/${id}`, {
-      method: 'PUT',
-      body: data,
-    });
-  }
-
-  static async delete(id: string): Promise<void> {
-    await apiFetch<void>(`/api/fuentes-emision/${id}`, { method: 'DELETE' });
-  }
-}
-
-// ── Subfuentes de Emisión ────────────────────────────────────────────────────
-
-export class SubfuentesEmisionService {
-  static async getAll(fuenteEmisionId?: string): Promise<ApiSubfuenteEmision[]> {
-    const res = await apiFetch<ApiSubfuenteEmision[]>('/api/subfuentes-emision', {
-      params: { limit: 100, fuenteEmisionId },
-    });
-    return res ?? [];
-  }
-
-  static async getById(id: string): Promise<ApiSubfuenteEmision | null> {
-    return apiFetch<ApiSubfuenteEmision>(`/api/subfuentes-emision/${id}`);
-  }
-
-  static async create(data: CreateSubfuenteEmisionPayload): Promise<ApiSubfuenteEmision> {
-    return apiFetch<ApiSubfuenteEmision>('/api/subfuentes-emision', {
+  static async create(data: CreateEmissionSubsourcePayload): Promise<ApiEmissionSubsource> {
+    return apiFetch<ApiEmissionSubsource>('/api/emission-subsources', {
       method: 'POST',
       body: data,
     });
@@ -146,63 +137,57 @@ export class SubfuentesEmisionService {
 
   static async update(
     id: string,
-    data: UpdateSubfuenteEmisionPayload
-  ): Promise<ApiSubfuenteEmision> {
-    return apiFetch<ApiSubfuenteEmision>(`/api/subfuentes-emision/${id}`, {
+    data: UpdateEmissionSubsourcePayload
+  ): Promise<ApiEmissionSubsource> {
+    return apiFetch<ApiEmissionSubsource>(`/api/emission-subsources/${id}`, {
       method: 'PUT',
       body: data,
     });
   }
 
   static async delete(id: string): Promise<void> {
-    await apiFetch<void>(`/api/subfuentes-emision/${id}`, { method: 'DELETE' });
+    await apiFetch<void>(`/api/emission-subsources/${id}`, { method: 'DELETE' });
   }
 }
 
-// ── Unidades de Emisión ──────────────────────────────────────────────────────
+// ── Emission Units ───────────────────────────────────────────────────────────
 
-export class UnidadesEmisionService {
+export class EmissionUnitsService {
   static async getAll(params?: {
+    unitTypeId?: string;
     search?: string;
-    tipoUnidadId?: string;
-  }): Promise<ApiUnidadEmision[]> {
-    const res = await apiFetch<ApiUnidadEmision[]>('/api/unidades-emision', {
+  }): Promise<ApiEmissionUnit[]> {
+    const res = await apiFetch<ApiEmissionUnit[]>('/api/emission-units', {
       params: { limit: 100, ...params },
     });
     return res ?? [];
   }
 
-  static async getById(id: string): Promise<ApiUnidadEmision | null> {
-    return apiFetch<ApiUnidadEmision>(`/api/unidades-emision/${id}`);
+  static async getById(id: string): Promise<ApiEmissionUnit | null> {
+    return apiFetch<ApiEmissionUnit>(`/api/emission-units/${id}`);
   }
 
-  static async create(data: CreateUnidadEmisionPayload): Promise<ApiUnidadEmision> {
-    return apiFetch<ApiUnidadEmision>('/api/unidades-emision', {
-      method: 'POST',
-      body: data,
-    });
+  static async create(data: CreateEmissionUnitPayload): Promise<ApiEmissionUnit> {
+    return apiFetch<ApiEmissionUnit>('/api/emission-units', { method: 'POST', body: data });
   }
 
-  static async update(id: string, data: UpdateUnidadEmisionPayload): Promise<ApiUnidadEmision> {
-    return apiFetch<ApiUnidadEmision>(`/api/unidades-emision/${id}`, {
-      method: 'PUT',
-      body: data,
-    });
+  static async update(id: string, data: UpdateEmissionUnitPayload): Promise<ApiEmissionUnit> {
+    return apiFetch<ApiEmissionUnit>(`/api/emission-units/${id}`, { method: 'PUT', body: data });
   }
 
   static async delete(id: string): Promise<void> {
-    await apiFetch<void>(`/api/unidades-emision/${id}`, { method: 'DELETE' });
+    await apiFetch<void>(`/api/emission-units/${id}`, { method: 'DELETE' });
   }
 }
 
-// ── Factores de Emisión ──────────────────────────────────────────────────────
+// ── Emission Factors ─────────────────────────────────────────────────────────
 
 export class EmissionFactorsService {
   static async getAll(filters?: {
-    anio?: number;
-    grupoEmisionId?: string;
-    fuenteEmisionId?: string;
-    subfuenteEmisionId?: string;
+    year?: number;
+    emissionGroupId?: string;
+    emissionSourceId?: string;
+    emissionSubsourceId?: string;
     search?: string;
   }): Promise<ApiEmissionFactor[]> {
     const res = await apiFetch<ApiEmissionFactor[]>('/api/emission-factors', {
@@ -216,10 +201,7 @@ export class EmissionFactorsService {
   }
 
   static async create(data: CreateEmissionFactorPayload): Promise<ApiEmissionFactor> {
-    return apiFetch<ApiEmissionFactor>('/api/emission-factors', {
-      method: 'POST',
-      body: data,
-    });
+    return apiFetch<ApiEmissionFactor>('/api/emission-factors', { method: 'POST', body: data });
   }
 
   static async update(id: string, data: UpdateEmissionFactorPayload): Promise<ApiEmissionFactor> {

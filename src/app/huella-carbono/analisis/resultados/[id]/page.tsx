@@ -61,7 +61,7 @@ export default function CarbonFootprintResultPage() {
     try {
       const analysis = await CarbonFootprintAnalysisService.getById(id as string);
       const [records, headquarters] = await Promise.all([
-        CarbonFootprintService.getCarbonFootprints({ empresaId: activeCompany.id, anio: analysis.anio }),
+        CarbonFootprintService.getCarbonFootprints({ companyId: activeCompany.id, year: analysis.year }),
         CompanyService.getHeadquarters(activeCompany.id),
       ]);
 
@@ -72,12 +72,12 @@ export default function CarbonFootprintResultPage() {
       }
 
       const firstRecord = records[0];
-      const sede = headquarters.find((h) => h.id === firstRecord.sedeId);
+      const sede = headquarters.find((h) => h.id === firstRecord.headquarterId);
       setData({
         id: id as string,
         empresaNombre: activeCompany.name,
-        sedeNombre: sede?.name ?? firstRecord.sedeId,
-        anio: String(analysis.anio),
+        sedeNombre: sede?.name ?? firstRecord.headquarterId,
+        anio: String(analysis.year),
       });
     } catch {
       toast.error('Error al cargar los resultados');
