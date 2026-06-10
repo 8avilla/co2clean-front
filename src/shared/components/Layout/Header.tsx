@@ -149,7 +149,6 @@ export const Header = () => {
               {isSwitching ? (
                 <Loader2 size={16} className="animate-spin text-zinc-500" />
               ) : user.companyLogo ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img src={user.companyLogo} alt="Logo Empresa" className="h-8 w-auto object-contain rounded-sm" />
               ) : (
                 <Building size={16} className="text-zinc-500" />
@@ -187,7 +186,6 @@ export const Header = () => {
         ) : (
           <div className="flex items-center gap-1.5 text-zinc-500 text-sm font-semibold">
             {user.companyLogo ? (
-              // eslint-disable-next-line @next/next/no-img-element
               <img src={user.companyLogo} alt="Logo Empresa" className="h-8 w-auto object-contain rounded-sm" />
             ) : (
               <Building size={16} className="text-zinc-400" />

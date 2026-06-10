@@ -12,7 +12,6 @@ function getToken(): string | null {
 }
 
 interface RequestOptions extends Omit<RequestInit, 'body'> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   body?: any;
   params?: Record<string, string | number | undefined | null>;
 }
@@ -50,7 +49,7 @@ export async function apiFetch<T = unknown>(
     if (response.status === 401) {
       // Clear token from cookies
       Cookies.remove('auth-token');
-      
+
       // Clear user info from localStorage and redirect to login page
       if (typeof window !== 'undefined') {
         localStorage.removeItem('user');
