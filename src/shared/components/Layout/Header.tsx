@@ -78,10 +78,6 @@ export const Header = () => {
         companies: response.user.companies ?? user.companies,
       });
 
-      toast.success(`Cambiado a ${response.user.company?.name}`, {
-        description: `Tu rol ahora es: ${response.user.role}`,
-      });
-
       // Refresh server components so page data reflects the new company
       router.refresh();
     } catch (e: unknown) {

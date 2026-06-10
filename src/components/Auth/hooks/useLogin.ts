@@ -27,10 +27,6 @@ export const useLogin = () => {
 
       // Store user info in localStorage for UI consumption
       localStorage.setItem('user', JSON.stringify(response.user));
-      
-      toast.success('¡Bienvenido!', {
-        description: `Has iniciado sesión como ${response.user.name}`,
-      });
 
       // Redirect to dashboard or home
       router.push('/');
