@@ -38,10 +38,7 @@ export const Sidebar = () => {
         <img
           src="/logo-app.png?v=2"
           alt="EcoCore Logo"
-          width={220}
-          height={180}
-          className="object-contain"
-          style={{ width: 'auto', height: 'auto' }}
+          className="h-8 w-auto object-contain"
         />
       </div>
 
