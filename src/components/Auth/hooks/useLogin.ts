@@ -18,10 +18,10 @@ export const useLogin = () => {
     try {
       const response = await AuthService.login(data);
       
-      // Store token in cookies (secure only in production for local development on http)
+      // Store token in cookies (secure only on HTTPS connections)
       Cookies.set('auth-token', response.token, { 
         expires: 7, 
-        secure: process.env.NODE_ENV === 'production', 
+        secure: false, 
         sameSite: 'strict' 
       });
 

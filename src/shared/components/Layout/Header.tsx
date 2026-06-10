@@ -10,6 +10,7 @@ import {
   Loader2
 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { AuthService } from '@/components/Auth/services/auth.service';
 import Cookies from 'js-cookie';
@@ -32,6 +33,7 @@ export const Header = () => {
     role: string;
     companyName: string;
     companyId: string;
+    companyLogo?: string;
     companies: Array<{ id: string; name: string }>;
   }>({
     id: '',
@@ -40,6 +42,7 @@ export const Header = () => {
     role: 'Super administrador',
     companyName: 'Expreso Brasilia S.A',
     companyId: '',
+    companyLogo: '',
     companies: []
   });
 
@@ -56,7 +59,7 @@ export const Header = () => {
 
       Cookies.set('auth-token', response.token, {
         expires: 7,
-        secure: process.env.NODE_ENV === 'production',
+        secure: false,
         sameSite: 'strict',
       });
 
@@ -71,6 +74,7 @@ export const Header = () => {
         role: response.user.role ?? 'Usuario',
         companyName: response.user.company?.name ?? '',
         companyId: response.user.company?.id ?? '',
+        companyLogo: response.user.company?.logoUrl ?? '',
         companies: response.user.companies ?? user.companies,
       });
 
@@ -102,6 +106,7 @@ export const Header = () => {
             role: parsed.role || 'Usuario',
             companyName: parsed.company?.name || 'EcoCore',
             companyId: parsed.company?.id || '',
+            companyLogo: parsed.company?.logoUrl || '',
             companies: parsed.companies || []
           });
         } catch (e) {
@@ -143,6 +148,9 @@ export const Header = () => {
             >
               {isSwitching ? (
                 <Loader2 size={16} className="animate-spin text-zinc-500" />
+              ) : user.companyLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.companyLogo} alt="Logo Empresa" className="h-8 w-auto object-contain rounded-sm" />
               ) : (
                 <Building size={16} className="text-zinc-500" />
               )}
@@ -178,7 +186,12 @@ export const Header = () => {
           </div>
         ) : (
           <div className="flex items-center gap-1.5 text-zinc-500 text-sm font-semibold">
-            <Building size={16} className="text-zinc-400" />
+            {user.companyLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.companyLogo} alt="Logo Empresa" className="h-8 w-auto object-contain rounded-sm" />
+            ) : (
+              <Building size={16} className="text-zinc-400" />
+            )}
             <span>{user.companyName}</span>
           </div>
         )}
