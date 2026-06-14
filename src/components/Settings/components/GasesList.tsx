@@ -1,12 +1,24 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, FlaskConical } from 'lucide-react';
+import {
+  Plus, Edit2, Trash2, FlaskConical,
+  ArrowUpDown, ArrowUp, ArrowDown, Search, X,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Gas } from '../types';
 import { GASES_MOCK } from '../data/gases.mock';
 import { EMISSION_SOURCES_MOCK } from '../data/emission-sources.mock';
 import { GasFormModal } from './GasFormModal';
+
+type CalcFilter = 'all' | 'biogenic' | 'non_biogenic';
+type GwpSort = 'asc' | 'desc' | null;
+
+const CALC_FILTERS: { key: CalcFilter; label: string }[] = [
+  { key: 'all', label: 'Todos' },
+  { key: 'biogenic', label: 'Biogénico' },
+  { key: 'non_biogenic', label: 'No biogénico' },
+];
 
 const getUsageCount = (gasId: string) =>
   EMISSION_SOURCES_MOCK.filter(s => s.factors.some(f => f.gas_id === gasId)).length;
@@ -14,23 +26,46 @@ const getUsageCount = (gasId: string) =>
 export const GasesList = () => {
   const [gases, setGases] = useState<Gas[]>(GASES_MOCK);
   const [searchTerm, setSearchTerm] = useState('');
+  const [calcFilter, setCalcFilter] = useState<CalcFilter>('all');
+  const [sortByGwp, setSortByGwp] = useState<GwpSort>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingGas, setEditingGas] = useState<Gas | undefined>(undefined);
 
-  const filteredGases = gases.filter(g =>
-    g.chemical_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    g.formula.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredGases = gases.filter(g => {
+    const matchSearch =
+      !searchTerm ||
+      g.chemical_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      g.formula.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchCalc =
+      calcFilter === 'all' ||
+      (calcFilter === 'biogenic' && g.biogenic_calculation) ||
+      (calcFilter === 'non_biogenic' && g.non_biogenic_calculation);
+    return matchSearch && matchCalc;
+  });
 
-  const handleOpenCreate = () => {
-    setEditingGas(undefined);
-    setModalOpen(true);
-  };
+  const displayedGases = sortByGwp
+    ? [...filteredGases].sort((a, b) => {
+        const aV = a.gwp;
+        const bV = b.gwp;
+        return sortByGwp === 'asc' ? aV - bV : bV - aV;
+      })
+    : filteredGases;
 
-  const handleOpenEdit = (gas: Gas) => {
-    setEditingGas(gas);
-    setModalOpen(true);
-  };
+  const hasActiveFilters = !!searchTerm || calcFilter !== 'all';
+
+  const toggleGwpSort = () =>
+    setSortByGwp(prev => (prev === null ? 'desc' : prev === 'desc' ? 'asc' : null));
+
+  const clearFilters = () => { setSearchTerm(''); setCalcFilter('all'); };
+
+  const gwpSortIcon = sortByGwp === 'asc'
+    ? <ArrowUp size={12} className="text-violet-500" />
+    : sortByGwp === 'desc'
+    ? <ArrowDown size={12} className="text-violet-500" />
+    : <ArrowUpDown size={12} className="text-zinc-300" />;
+
+  const handleOpenCreate = () => { setEditingGas(undefined); setModalOpen(true); };
+  const handleOpenEdit = (gas: Gas) => { setEditingGas(gas); setModalOpen(true); };
 
   const handleSave = (data: Omit<Gas, 'id'> & { id?: string }) => {
     if (data.id) {
@@ -45,9 +80,39 @@ export const GasesList = () => {
   };
 
   const handleDelete = (gas: Gas) => {
-    if (!confirm(`¿Estás seguro de eliminar el gas "${gas.chemical_name}"?`)) return;
+    const usage = getUsageCount(gas.id);
+    const warning = usage > 0
+      ? `\n\nAtención: este gas está referenciado en ${usage} ${usage === 1 ? 'fuente' : 'fuentes'} de emisión.`
+      : '';
+    if (!confirm(`¿Estás seguro de eliminar "${gas.chemical_name}" (${gas.formula})?${warning}`)) return;
     setGases(prev => prev.filter(g => g.id !== gas.id));
     toast.success('Gas eliminado exitosamente');
+  };
+
+  const EmptyState = ({ colspan }: { colspan?: number }) => {
+    const content = (
+      <div className="px-6 py-16 text-center">
+        <p className="text-sm font-semibold text-zinc-500">
+          {hasActiveFilters ? 'Sin resultados' : 'Sin gases registrados'}
+        </p>
+        <p className="text-xs text-zinc-400 mt-1">
+          {hasActiveFilters
+            ? 'Prueba con otros filtros o términos de búsqueda'
+            : 'Crea el primer gas de efecto invernadero'}
+        </p>
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            className="mt-3 text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors"
+          >
+            Limpiar filtros
+          </button>
+        )}
+      </div>
+    );
+    return colspan
+      ? <tr><td colSpan={colspan}>{content}</td></tr>
+      : content;
   };
 
   return (
@@ -70,26 +135,57 @@ export const GasesList = () => {
           </button>
         </div>
 
-        {/* Search */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-zinc-100">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
-            <input
-              type="text"
-              placeholder="Buscar por nombre o fórmula..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all text-sm"
-            />
-          </div>
-        </div>
-
         <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">
+          {/* Toolbar */}
+          <div className="px-6 py-3 border-b border-zinc-100 flex items-center gap-3 flex-wrap">
+            {/* Search */}
+            <div className="relative flex-1 min-w-52">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={14} />
+              <input
+                type="text"
+                placeholder="Buscar por nombre o fórmula..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-8 py-1.5 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 text-sm transition-all"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+
+            {/* Calc type filter */}
+            <div className="flex items-center gap-0.5 bg-zinc-100 rounded-lg p-0.5 flex-shrink-0">
+              {CALC_FILTERS.map(opt => (
+                <button
+                  key={opt.key}
+                  onClick={() => setCalcFilter(opt.key)}
+                  className={`px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                    calcFilter === opt.key
+                      ? 'bg-white text-zinc-800 shadow-sm'
+                      : 'text-zinc-500 hover:text-zinc-700'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Result count */}
+            <span className="text-xs text-zinc-400 flex-shrink-0 tabular-nums">
+              {displayedGases.length} {displayedGases.length === 1 ? 'gas' : 'gases'}
+              {hasActiveFilters && ` de ${gases.length}`}
+            </span>
+          </div>
+
           {/* Mobile card view */}
           <div className="md:hidden divide-y divide-zinc-100">
-            {filteredGases.length > 0 ? (
-              filteredGases.map(gas => {
-                const ar6 = gas.gwp_versions.find(v => v.version === 'AR6');
+            {displayedGases.length > 0 ? (
+              displayedGases.map(gas => {
                 const usage = getUsageCount(gas.id);
                 return (
                   <div key={gas.id} className="p-4 flex items-start justify-between gap-3">
@@ -102,14 +198,12 @@ export const GasesList = () => {
                         <span className="font-mono text-xs font-bold text-violet-700 bg-violet-50 px-1.5 py-0.5 rounded inline-block mt-0.5">
                           {gas.formula}
                         </span>
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                          {ar6 && (
-                            <span className="text-xs font-semibold text-zinc-600">
-                              GWP: <span className="font-bold text-zinc-900">{ar6.value.toLocaleString()}</span>
-                            </span>
-                          )}
+                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                          <span className="text-xs font-semibold text-zinc-600">
+                            GWP: <span className="font-bold text-zinc-900">{gas.gwp.toLocaleString()}</span>
+                          </span>
                           {usage > 0 && (
-                            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
                               {usage} {usage === 1 ? 'fuente' : 'fuentes'}
                             </span>
                           )}
@@ -140,7 +234,7 @@ export const GasesList = () => {
                 );
               })
             ) : (
-              <p className="px-6 py-12 text-center text-zinc-500 text-sm">No se encontraron gases.</p>
+              <EmptyState />
             )}
           </div>
 
@@ -151,15 +245,22 @@ export const GasesList = () => {
                 <tr className="bg-zinc-50/50 border-b border-zinc-100">
                   <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Gas</th>
                   <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Fórmula</th>
-                  <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">GWP AR6</th>
+                  <th
+                    className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100 select-none transition-colors"
+                    onClick={toggleGwpSort}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span>GWP</span>
+                      {gwpSortIcon}
+                    </div>
+                  </th>
                   <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Cálculo</th>
                   <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {filteredGases.length > 0 ? (
-                  filteredGases.map(gas => {
-                    const ar6 = gas.gwp_versions.find(v => v.version === 'AR6');
+                {displayedGases.length > 0 ? (
+                  displayedGases.map(gas => {
                     const usage = getUsageCount(gas.id);
                     return (
                       <tr key={gas.id} className="hover:bg-zinc-50/50 transition-colors group">
@@ -171,7 +272,7 @@ export const GasesList = () => {
                             <div>
                               <span className="font-bold text-zinc-900 block">{gas.chemical_name}</span>
                               {usage > 0 && (
-                                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200 inline-block mt-0.5">
+                                <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded-full border border-teal-200 inline-block mt-0.5">
                                   Usado en {usage} {usage === 1 ? 'fuente' : 'fuentes'}
                                 </span>
                               )}
@@ -184,13 +285,9 @@ export const GasesList = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          {ar6 ? (
-                            <span className="font-semibold text-zinc-800 tabular-nums">
-                              {ar6.value.toLocaleString()}
-                            </span>
-                          ) : (
-                            <span className="text-zinc-400">—</span>
-                          )}
+                          <span className="font-semibold text-zinc-800 tabular-nums">
+                            {gas.gwp.toLocaleString()}
+                          </span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-1.5 flex-wrap">
@@ -210,7 +307,7 @@ export const GasesList = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => handleOpenEdit(gas)}
                               className="p-2 text-zinc-400 hover:text-violet-600 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-zinc-200"
@@ -229,11 +326,7 @@ export const GasesList = () => {
                     );
                   })
                 ) : (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-zinc-500">
-                      No se encontraron gases.
-                    </td>
-                  </tr>
+                  <EmptyState colspan={5} />
                 )}
               </tbody>
             </table>

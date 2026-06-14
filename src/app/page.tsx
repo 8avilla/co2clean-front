@@ -17,7 +17,7 @@ export default function Home() {
           <div className="text-center space-y-2">
             <h1 className="text-2xl font-bold text-zinc-800">Bienvenido a EcoCore</h1>
             <p className="text-zinc-500 text-sm max-w-sm">
-              Plataforma de gestión y análisis de huella de carbono empresarial.
+              Tu central inteligente para medir, gestionar y acelerar la descarbonización de tu organización.
             </p>
           </div>
         </div>

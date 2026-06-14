@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "EcoCore",
-  description: "Plataforma de gestión y análisis de huella de carbono empresarial",
+  description: "Tu central inteligente para medir, gestionar y acelerar la descarbonización de tu organización",
   icons: {
     icon: "/logo-app.png",
     shortcut: "/logo-app.png",

@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+// ── Mejora 7: sin namespace React — imports nombrados ──
+import { useState, useEffect, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -25,17 +26,21 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// ── Mejora 6: iniciales del usuario ──
+const getInitials = (name: string) =>
+  name.trim().split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+
 interface NavItemProps {
   href: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   isActive: boolean;
-  activeClass: string;
   isCollapsed: boolean;
   onClick?: () => void;
 }
 
-const NavItem = ({ href, icon, label, isActive, activeClass, isCollapsed, onClick }: NavItemProps) => (
+// ── Mejora 1+2: activeClass unificado — teal para todos los ítems ──
+const NavItem = ({ href, icon, label, isActive, isCollapsed, onClick }: NavItemProps) => (
   <Link
     href={href}
     onClick={onClick}
@@ -43,7 +48,9 @@ const NavItem = ({ href, icon, label, isActive, activeClass, isCollapsed, onClic
     className={cn(
       'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
       isCollapsed ? 'justify-center px-2' : '',
-      isActive ? activeClass : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'
+      isActive
+        ? 'bg-teal-50 text-teal-600'
+        : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'
     )}
   >
     <span className="flex-shrink-0">{icon}</span>
@@ -56,68 +63,110 @@ export const Sidebar = () => {
   const { hasPermission } = usePermission();
   const { isCollapsed, isOpen, toggleCollapsed, closeSidebar } = useSidebar();
 
+  // ── Mejora 6: datos del usuario para mini-perfil ──
+  const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState('');
+
+  useEffect(() => {
+    const loadUser = () => {
+      const stored = localStorage.getItem('user');
+      if (!stored) return;
+      try {
+        const parsed = JSON.parse(stored);
+        setUserName(parsed.name ?? '');
+        setUserRole(parsed.role ?? '');
+      } catch {
+        // JSON malformado — ignorar
+      }
+    };
+    loadUser();
+    window.addEventListener('user:updated', loadUser);
+    return () => window.removeEventListener('user:updated', loadUser);
+  }, []);
+
   const handleLogout = () => {
     AuthService.logout();
     window.location.href = '/login';
   };
 
   const handleNavClick = () => {
-    // Close mobile drawer after navigation
     closeSidebar();
   };
 
   const isHuellaActive = pathname.startsWith('/huella-carbono');
   const isSettingsActive = pathname.startsWith('/configuracion');
 
+  // ── Mejora 1: icono teal cuando activo, zinc-400 cuando inactivo (hereda de NavItem) ──
+  const iconClass = (active: boolean) =>
+    active ? 'text-teal-600' : 'text-zinc-400';
+
   return (
     <aside
       className={cn(
-        // Base styles
         'h-screen bg-white border-r border-zinc-200 flex flex-col fixed left-0 top-0 overflow-y-auto z-40 transition-all duration-300',
-        // Mobile: hidden by default, visible as drawer when isOpen
         isOpen ? 'translate-x-0' : '-translate-x-full',
         'md:translate-x-0',
-        // Width: collapsed = 72px, expanded = 256px
         isCollapsed ? 'md:w-[72px]' : 'md:w-64',
-        // Mobile always full width drawer
         'w-64',
       )}
     >
-      {/* Logo + Collapse Toggle */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-zinc-100 flex-shrink-0">
-        {!isCollapsed && (
+      {/* ── Logo + toggle ── */}
+      <div className="h-16 border-b border-zinc-100 flex-shrink-0 flex items-center">
+        {/* Desktop */}
+        <div className={cn(
+          "hidden md:flex items-center w-full",
+          isCollapsed ? "px-2 justify-center gap-1.5" : "px-4 justify-between"
+        )}>
+          {isCollapsed ? (
+            <>
+              <img
+                src="/logo-app.png?v=2"
+                alt="EcoCore Logo"
+                className="h-6 w-6 object-contain flex-shrink-0"
+              />
+              <button
+                onClick={toggleCollapsed}
+                title="Expandir menú"
+                className="w-6 h-6 rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors flex items-center justify-center flex-shrink-0"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </>
+          ) : (
+            <>
+              <img
+                src="/logo-app.png?v=2"
+                alt="EcoCore Logo"
+                className="h-6 w-auto object-contain"
+              />
+              <button
+                onClick={toggleCollapsed}
+                title="Colapsar menú"
+                className="w-8 h-8 rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors flex items-center justify-center flex-shrink-0"
+              >
+                <ChevronLeft size={16} />
+              </button>
+            </>
+          )}
+        </div>
+        {/* Mobile: logo siempre visible */}
+        <div className="md:hidden flex items-center justify-between w-full px-4">
           <img
             src="/logo-app.png?v=2"
             alt="EcoCore Logo"
             className="h-6 w-auto object-contain"
           />
-        )}
-        <button
-          onClick={toggleCollapsed}
-          title={isCollapsed ? 'Expandir menú' : 'Colapsar menú'}
-          className={cn(
-            'hidden md:flex items-center justify-center w-8 h-8 rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors flex-shrink-0',
-            isCollapsed ? 'mx-auto' : 'ml-auto'
-          )}
-        >
-          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-        </button>
-        {/* Mobile: show logo always, no collapse button */}
-        <img
-          src="/logo-app.png?v=2"
-          alt="EcoCore Logo"
-          className="h-6 w-auto object-contain md:hidden"
-        />
+        </div>
       </div>
 
-      {/* Navigation */}
+      {/* ── Navegación ── */}
       <nav className="flex-1 py-4 px-2 space-y-1">
+        {/* ── Mejora 1+2: todos los ítems con teal activo ── */}
         <NavItem
           href="/"
-          icon={<Home size={18} className={pathname === '/' ? 'text-blue-600' : 'text-zinc-400'} />}
+          icon={<Home size={18} className={iconClass(pathname === '/')} />}
           label="Inicio"
           isActive={pathname === '/'}
-          activeClass="bg-blue-50 text-blue-600"
           isCollapsed={isCollapsed}
           onClick={handleNavClick}
         />
@@ -125,22 +174,21 @@ export const Sidebar = () => {
         {hasPermission(PermissionCode.VIEW_COMPANIES) && (
           <NavItem
             href="/empresas"
-            icon={<Building2 size={18} className={pathname.startsWith('/empresas') ? 'text-teal-600' : 'text-zinc-400'} />}
+            icon={<Building2 size={18} className={iconClass(pathname.startsWith('/empresas'))} />}
             label="Empresas"
             isActive={pathname.startsWith('/empresas')}
-            activeClass="bg-teal-50 text-teal-600"
             isCollapsed={isCollapsed}
             onClick={handleNavClick}
           />
         )}
 
         {hasPermission(PermissionCode.VIEW_USERS) && (
+          // ── Mejora 2: "Usuarios" ya no usa bg-zinc-900 text-white ──
           <NavItem
             href="/usuarios"
-            icon={<User size={18} className={pathname.startsWith('/usuarios') ? 'text-white' : 'text-zinc-400'} />}
+            icon={<User size={18} className={iconClass(pathname.startsWith('/usuarios'))} />}
             label="Usuarios"
             isActive={pathname.startsWith('/usuarios')}
-            activeClass="bg-zinc-900 text-white"
             isCollapsed={isCollapsed}
             onClick={handleNavClick}
           />
@@ -149,40 +197,44 @@ export const Sidebar = () => {
         {hasPermission(PermissionCode.VIEW_ROLES) && (
           <NavItem
             href="/roles"
-            icon={<ShieldCheck size={18} className={pathname.startsWith('/roles') ? 'text-blue-600' : 'text-zinc-400'} />}
+            icon={<ShieldCheck size={18} className={iconClass(pathname.startsWith('/roles'))} />}
             label="Roles y Permisos"
             isActive={pathname.startsWith('/roles')}
-            activeClass="bg-blue-50 text-blue-600"
             isCollapsed={isCollapsed}
             onClick={handleNavClick}
           />
         )}
 
-        {/* Huella de Carbono group */}
+        {/* Grupo: Huella de Carbono */}
         {(hasPermission(PermissionCode.VIEW_CARBON_FOOTPRINT) ||
           hasPermission(PermissionCode.VIEW_CARBON_FOOTPRINT_ANALYSIS)) && (
           <div className="space-y-1">
             {isCollapsed ? (
-              <Link
+              <NavItem
                 href="/huella-carbono"
-                title="Huella de Carbono"
+                icon={<Leaf size={18} className={iconClass(isHuellaActive)} />}
+                label="Huella de Carbono"
+                isActive={isHuellaActive}
+                isCollapsed={isCollapsed}
                 onClick={handleNavClick}
-                className={cn(
-                  'flex justify-center px-2 py-2.5 rounded-lg transition-colors',
-                  isHuellaActive ? 'bg-emerald-50 text-emerald-600' : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'
-                )}
-              >
-                <Leaf size={18} className={isHuellaActive ? 'text-emerald-600' : 'text-zinc-400'} />
-              </Link>
+              />
             ) : (
               <>
-                <div className={cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium',
-                  isHuellaActive ? 'bg-emerald-50 text-emerald-600' : 'text-zinc-600'
-                )}>
-                  <Leaf size={18} className={isHuellaActive ? 'text-emerald-600' : 'text-zinc-400'} />
+                {/* ── Mejora 4: cabecera de grupo como Link ── */}
+                <Link
+                  href="/huella-carbono"
+                  onClick={handleNavClick}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                    isHuellaActive
+                      ? 'bg-teal-50/60 text-teal-600'
+                      : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'
+                  )}
+                >
+                  <Leaf size={18} className={iconClass(isHuellaActive)} />
                   Huella de Carbono
-                </div>
+                  <ChevronRight size={14} className="ml-auto opacity-40" />
+                </Link>
 
                 <div className="pl-8 pr-2 space-y-1">
                   {hasPermission(PermissionCode.VIEW_CARBON_FOOTPRINT) && (
@@ -192,7 +244,7 @@ export const Sidebar = () => {
                       className={cn(
                         'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                         pathname === '/huella-carbono' || pathname === '/huella-carbono/nueva'
-                          ? 'text-emerald-600 bg-emerald-50/50'
+                          ? 'text-teal-600 bg-teal-50/50'
                           : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
                       )}
                     >
@@ -207,46 +259,50 @@ export const Sidebar = () => {
                       className={cn(
                         'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                         pathname.startsWith('/huella-carbono/analisis') && !pathname.includes('/parametros')
-                          ? 'text-emerald-600 bg-emerald-50/50'
+                          ? 'text-teal-600 bg-teal-50/50'
                           : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
                       )}
                     >
                       Análisis huella de carbono
                     </Link>
                   )}
-
-
                 </div>
               </>
             )}
           </div>
         )}
-        {/* Configuración group */}
+
+        {/* Grupo: Configuración */}
         {(hasPermission(PermissionCode.MANAGE_GASES) ||
           hasPermission(PermissionCode.MANAGE_EMISSION_SOURCES) ||
           hasPermission(PermissionCode.MANAGE_EMISSION_SOURCE_CATEGORIES)) && (
           <div className="space-y-1">
             {isCollapsed ? (
-              <Link
+              <NavItem
                 href="/configuracion/fuentes-emision"
-                title="Configuración"
+                icon={<Settings size={18} className={iconClass(isSettingsActive)} />}
+                label="Configuración"
+                isActive={isSettingsActive}
+                isCollapsed={isCollapsed}
                 onClick={handleNavClick}
-                className={cn(
-                  'flex justify-center px-2 py-2.5 rounded-lg transition-colors',
-                  isSettingsActive ? 'bg-violet-50 text-violet-600' : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'
-                )}
-              >
-                <Settings size={18} className={isSettingsActive ? 'text-violet-600' : 'text-zinc-400'} />
-              </Link>
+              />
             ) : (
               <>
-                <div className={cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium',
-                  isSettingsActive ? 'bg-violet-50 text-violet-600' : 'text-zinc-600'
-                )}>
-                  <Settings size={18} className={isSettingsActive ? 'text-violet-600' : 'text-zinc-400'} />
+                {/* ── Mejora 4: cabecera de grupo como Link ── */}
+                <Link
+                  href="/configuracion/fuentes-emision"
+                  onClick={handleNavClick}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                    isSettingsActive
+                      ? 'bg-teal-50/60 text-teal-600'
+                      : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'
+                  )}
+                >
+                  <Settings size={18} className={iconClass(isSettingsActive)} />
                   Configuración
-                </div>
+                  <ChevronRight size={14} className="ml-auto opacity-40" />
+                </Link>
 
                 <div className="pl-8 pr-2 space-y-1">
                   {(hasPermission(PermissionCode.MANAGE_EMISSION_SOURCES) ||
@@ -258,7 +314,7 @@ export const Sidebar = () => {
                         'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                         pathname.startsWith('/configuracion/fuentes-emision') ||
                         pathname.startsWith('/configuracion/categorias-fuentes')
-                          ? 'text-violet-600 bg-violet-50/50'
+                          ? 'text-teal-600 bg-teal-50/50'
                           : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
                       )}
                     >
@@ -273,7 +329,7 @@ export const Sidebar = () => {
                       className={cn(
                         'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                         pathname === '/configuracion/gases'
-                          ? 'text-violet-600 bg-violet-50/50'
+                          ? 'text-teal-600 bg-teal-50/50'
                           : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
                       )}
                     >
@@ -287,17 +343,35 @@ export const Sidebar = () => {
         )}
       </nav>
 
-      {/* Logout */}
+      {/* ── Mejora 6: mini-perfil de usuario (útil en mobile) ── */}
+      {userName && (
+        <div className={cn(
+          'border-t border-zinc-100 px-3 py-3',
+          isCollapsed ? 'flex justify-center' : 'flex items-center gap-3'
+        )}>
+          <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-black flex-shrink-0 border border-teal-200">
+            {getInitials(userName)}
+          </div>
+          {!isCollapsed && (
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-zinc-900 truncate leading-tight">{userName}</p>
+              <p className="text-[10px] text-zinc-500 truncate">{userRole || 'Usuario'}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Logout ── */}
       <div className="p-3 border-t border-zinc-100">
         <button
           onClick={handleLogout}
           title={isCollapsed ? 'Cerrar Sesión' : undefined}
           className={cn(
-            'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-zinc-600 hover:bg-red-50 hover:text-red-600 transition-colors',
+            'group w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-zinc-600 hover:bg-red-50 hover:text-red-600 transition-colors',
             isCollapsed ? 'justify-center px-2' : ''
           )}
         >
-          <LogOut size={18} className="text-zinc-400 flex-shrink-0" />
+          <LogOut size={18} className="text-zinc-400 group-hover:text-red-600 flex-shrink-0 transition-colors" />
           {!isCollapsed && <span>Cerrar Sesión</span>}
         </button>
       </div>

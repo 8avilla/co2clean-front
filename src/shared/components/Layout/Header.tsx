@@ -11,14 +11,50 @@ import {
   Menu,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { AuthService } from '@/components/Auth/services/auth.service';
 import Cookies from 'js-cookie';
 import { toast } from 'sonner';
 import { useSidebar } from './SidebarContext';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+const getInitials = (name: string) =>
+  name.trim().split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+
+const AVATAR_COLORS = [
+  'bg-teal-100 text-teal-700 border-teal-200',
+  'bg-blue-100 text-blue-700 border-blue-200',
+  'bg-violet-100 text-violet-700 border-violet-200',
+  'bg-amber-100 text-amber-700 border-amber-200',
+  'bg-rose-100 text-rose-700 border-rose-200',
+  'bg-emerald-100 text-emerald-700 border-emerald-200',
+];
+
+const getAvatarColor = (name: string) =>
+  AVATAR_COLORS[(name.charCodeAt(0) || 0) % AVATAR_COLORS.length];
+
+const getSectionName = (path: string) => {
+  if (path === '/') return 'Inicio';
+  if (path.startsWith('/empresas')) return 'Empresas';
+  if (path.startsWith('/usuarios')) return 'Usuarios';
+  if (path.startsWith('/roles')) return 'Roles y Permisos';
+  if (path.startsWith('/huella-carbono/analisis')) return 'Análisis de Huella de Carbono';
+  if (path.startsWith('/huella-carbono')) return 'Emisiones de Huella de Carbono';
+  if (path.startsWith('/configuracion/gases')) return 'Gases de Efecto Invernadero';
+  if (path.startsWith('/configuracion/fuentes-emision')) return 'Fuentes de Emisión';
+  if (path.startsWith('/configuracion/categorias-fuentes')) return 'Categorías de Fuentes';
+  if (path.startsWith('/perfil')) return 'Mi Perfil';
+  return '';
+};
 
 export const Header = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const { toggleSidebar } = useSidebar();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isCompanyOpen, setIsCompanyOpen] = useState(false);
@@ -39,10 +75,10 @@ export const Header = () => {
     companies: Array<{ id: string; name: string }>;
   }>({
     id: '',
-    name: 'Ivan Villamil',
-    email: '8avilla@gmail.com',
-    role: 'Super administrador',
-    companyName: 'Expreso Brasilia S.A',
+    name: '',
+    email: '',
+    role: '',
+    companyName: '',
     companyId: '',
     companyLogo: '',
     companies: []
@@ -107,8 +143,8 @@ export const Header = () => {
             companyLogo: parsed.company?.logoUrl || '',
             companies: parsed.companies || []
           });
-        } catch (e) {
-          console.error(e);
+        } catch {
+          // Silenced for production
         }
       }
     }
@@ -127,7 +163,7 @@ export const Header = () => {
 
   return (
     <header className="h-16 bg-white border-b border-zinc-200 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30">
-      {/* Left side — hamburger on mobile, empty on desktop */}
+      {/* Left side — hamburger on mobile, section name on desktop */}
       <div className="flex items-center gap-3">
         <button
           onClick={toggleSidebar}
@@ -136,6 +172,9 @@ export const Header = () => {
         >
           <Menu size={20} />
         </button>
+        <h2 className="hidden md:block text-sm font-semibold text-zinc-600">
+          {getSectionName(pathname)}
+        </h2>
       </div>
 
       {/* Right side (Actions & Profile) */}
@@ -171,13 +210,13 @@ export const Header = () => {
                       onClick={() => handleSwitchCompany(c.id)}
                       className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between font-medium ${
                         c.id === user.companyId
-                          ? 'bg-indigo-50 text-indigo-700 font-bold border-r-2 border-indigo-600'
+                          ? 'bg-teal-50 text-teal-700 font-bold border-r-2 border-teal-600'
                           : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'
                       }`}
                     >
                       <span>{c.name}</span>
                       {c.id === user.companyId && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-teal-600" />
                       )}
                     </button>
                   ))}
@@ -203,11 +242,14 @@ export const Header = () => {
             className="flex items-center gap-3 p-1 px-3 rounded-full hover:bg-zinc-50 transition-all border border-transparent hover:border-zinc-200"
           >
             <div className="hidden lg:flex flex-col text-right">
-              <span className="text-sm font-bold text-zinc-900 leading-tight">{user.name}</span>
+              <span className="text-sm font-bold text-zinc-900 leading-tight">{user.name || 'Usuario'}</span>
               <span className="text-xs text-zinc-500 font-medium">{user.role}</span>
             </div>
-            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100">
-              <User size={18} />
+            <div className={cn(
+              "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black border flex-shrink-0",
+              getAvatarColor(user.name || 'Usuario')
+            )}>
+              {getInitials(user.name || 'Usuario')}
             </div>
             <ChevronDown size={16} className={isProfileOpen ? "rotate-180 transition-transform" : "transition-transform"} />
           </button>
@@ -217,11 +259,14 @@ export const Header = () => {
             <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-zinc-200 py-2 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
               {/* User Info Section */}
               <div className="px-4 py-4 border-b border-zinc-100 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100">
-                  <User size={24} />
+                <div className={cn(
+                  "w-12 h-12 rounded-full flex items-center justify-center text-sm font-black border flex-shrink-0",
+                  getAvatarColor(user.name || 'Usuario')
+                )}>
+                  {getInitials(user.name || 'Usuario')}
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-bold text-zinc-900 leading-tight">{user.name}</span>
+                  <span className="font-bold text-zinc-900 leading-tight">{user.name || 'Usuario'}</span>
                   <span className="text-sm text-zinc-500">{user.email}</span>
                 </div>
               </div>
@@ -231,9 +276,9 @@ export const Header = () => {
                 <Link
                   href="/perfil"
                   onClick={() => setIsProfileOpen(false)}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-blue-600 hover:bg-blue-50 transition-colors border-l-2 border-transparent hover:border-blue-600"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-teal-600 hover:bg-teal-50 transition-colors border-l-2 border-transparent hover:border-teal-600"
                 >
-                  <Settings size={18} className="text-blue-500" />
+                  <Settings size={18} className="text-teal-500" />
                   Perfil
                 </Link>
               </div>

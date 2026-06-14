@@ -3,7 +3,6 @@ import { EmissionSource } from '../types';
 export const EMISSION_SOURCES_MOCK: EmissionSource[] = [
   {
     id: 'src_diesel_movil',
-    code: 'combustible_diesel_movil',
     name: 'Diesel B10 - Fuentes Móviles',
     category: 'Combustión Móvil',
     measurement_type: 'Volumen',
@@ -16,7 +15,6 @@ export const EMISSION_SOURCES_MOCK: EmissionSource[] = [
   },
   {
     id: 'src_gasolina_movil',
-    code: 'combustible_gasolina_movil',
     name: 'Gasolina - Fuentes Móviles',
     category: 'Combustión Móvil',
     measurement_type: 'Volumen',
@@ -29,7 +27,6 @@ export const EMISSION_SOURCES_MOCK: EmissionSource[] = [
   },
   {
     id: 'src_glp_estacionario',
-    code: 'combustible_glp_estacionario',
     name: 'GLP - Fuentes Estacionarias',
     category: 'Combustión Estacionaria',
     measurement_type: 'Volumen',
@@ -42,7 +39,6 @@ export const EMISSION_SOURCES_MOCK: EmissionSource[] = [
   },
   {
     id: 'src_gas_natural_estacionario',
-    code: 'combustible_gas_natural_estacionario',
     name: 'Gas Natural - Fuentes Estacionarias',
     category: 'Combustión Estacionaria',
     measurement_type: 'Volumen',
@@ -55,7 +51,6 @@ export const EMISSION_SOURCES_MOCK: EmissionSource[] = [
   },
   {
     id: 'src_electricidad_sin',
-    code: 'electricidad_sin_colombia',
     name: 'Electricidad - SIN Colombia',
     category: 'Electricidad Adquirida',
     measurement_type: 'Energía',
@@ -66,7 +61,6 @@ export const EMISSION_SOURCES_MOCK: EmissionSource[] = [
   },
   {
     id: 'src_transporte_terrestre',
-    code: 'transporte_terrestre_terceros',
     name: 'Transporte Terrestre - Terceros',
     category: 'Transporte y Distribución',
     measurement_type: 'Longitud',

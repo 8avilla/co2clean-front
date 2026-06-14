@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import {
   Plus, Edit2, Trash2, Search, Tag,
-  Zap, Flame, Truck, FileText, ChevronRight, SlidersHorizontal, ChevronDown,
+  Zap, Flame, Truck, FileText, ChevronRight, SlidersHorizontal, ChevronDown, Copy,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EmissionSource, EmissionSourceCategory, EMISSION_GROUPS } from '../types';
@@ -36,10 +36,21 @@ const getSourceIcon = (category: string) => {
   return <FileText size={15} className="text-zinc-500" />;
 };
 
-const getGasLabel = (gasId: string) => {
-  const gas = GASES_MOCK.find(g => g.id === gasId);
-  return gas ? gas.formula : gasId;
+const getSourceIconBg = (category: string) => {
+  if (category.includes('Eléctric') || category.includes('Electricidad'))
+    return 'bg-amber-50 border-amber-100';
+  if (category.includes('Estacionaria') || category.includes('Gas') || category.includes('gas'))
+    return 'bg-orange-50 border-orange-100';
+  if (category.includes('Móvil') || category.includes('Transporte'))
+    return 'bg-blue-50 border-blue-100';
+  return 'bg-zinc-50 border-zinc-200';
 };
+
+const getGasLabel = (gasId: string) =>
+  GASES_MOCK.find(g => g.id === gasId)?.formula ?? gasId;
+
+const getGasName = (gasId: string) =>
+  GASES_MOCK.find(g => g.id === gasId)?.chemical_name ?? '';
 
 export const EmissionSourceMasterDetail = () => {
   const [categories, setCategories] = useState<EmissionSourceCategory[]>(EMISSION_SOURCE_CATEGORIES_MOCK);
@@ -49,6 +60,7 @@ export const EmissionSourceMasterDetail = () => {
   );
   const [catSearch, setCatSearch] = useState('');
   const [sourceSearch, setSourceSearch] = useState('');
+  const [showIncompleteOnly, setShowIncompleteOnly] = useState(false);
   const [expandedSourceIds, setExpandedSourceIds] = useState<Set<string>>(new Set());
 
   // Category modal
@@ -68,11 +80,17 @@ export const EmissionSourceMasterDetail = () => {
   const filteredSources = selectedCategory
     ? sources.filter(s =>
         s.category === selectedCategory.name &&
-        (!sourceSearch || s.name.toLowerCase().includes(sourceSearch.toLowerCase()))
+        (!sourceSearch || s.name.toLowerCase().includes(sourceSearch.toLowerCase())) &&
+        (!showIncompleteOnly || s.factors.length === 0)
       )
     : [];
 
   const totalFactors = filteredSources.reduce((acc, s) => acc + s.factors.length, 0);
+
+  // Count of incomplete sources in current category for the filter badge
+  const incompleteCount = selectedCategory
+    ? sources.filter(s => s.category === selectedCategory.name && s.factors.length === 0).length
+    : 0;
 
   const sourceCountFor = (cat: EmissionSourceCategory) =>
     sources.filter(s => s.category === cat.name).length;
@@ -85,6 +103,9 @@ export const EmissionSourceMasterDetail = () => {
       return next;
     });
   };
+
+  const expandAll = () => setExpandedSourceIds(new Set(filteredSources.map(s => s.id)));
+  const collapseAll = () => setExpandedSourceIds(new Set());
 
   // ── Category CRUD ─────────────────────────────────────────────────────────
 
@@ -117,6 +138,17 @@ export const EmissionSourceMasterDetail = () => {
 
   const handleOpenCreateSource = () => { setEditingSource(undefined); setSourceModalOpen(true); };
   const handleOpenEditSource = (s: EmissionSource) => { setEditingSource(s); setSourceModalOpen(true); };
+
+  const handleDuplicateSource = (s: EmissionSource) => {
+    const duplicate: EmissionSource = {
+      ...s,
+      id: `src_${Date.now()}`,
+      name: `Copia de ${s.name}`,
+      code: '',
+    };
+    setSources(prev => [...prev, duplicate]);
+    toast.success('Fuente de emisión duplicada exitosamente');
+  };
 
   const handleSaveSource = (data: Omit<EmissionSource, 'id'> & { id?: string }) => {
     if (data.id) {
@@ -186,10 +218,12 @@ export const EmissionSourceMasterDetail = () => {
                 filteredCategories.map(cat => {
                   const isSelected = cat.id === selectedCategoryId;
                   const count = sourceCountFor(cat);
+                  const isEmpty = count === 0;
                   return (
                     <div
                       key={cat.id}
                       onClick={() => setSelectedCategoryId(cat.id)}
+                      title={cat.description || undefined}
                       className={`group relative px-4 py-3 cursor-pointer border-b border-zinc-50 transition-colors ${
                         isSelected ? 'bg-violet-50' : 'hover:bg-zinc-50/80'
                       }`}
@@ -198,19 +232,25 @@ export const EmissionSourceMasterDetail = () => {
                         <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 border transition-colors ${
                           isSelected ? 'bg-violet-100 border-violet-200' : 'bg-zinc-50 border-zinc-200'
                         }`}>
-                          <Tag size={13} className={isSelected ? 'text-violet-600' : 'text-zinc-400'} />
+                          <Tag size={13} className={isSelected ? 'text-violet-600' : isEmpty ? 'text-zinc-300' : 'text-zinc-400'} />
                         </div>
                         <div className="min-w-0">
-                          <p className={`text-sm font-semibold truncate ${isSelected ? 'text-violet-700' : 'text-zinc-800'}`}>
+                          <p className={`text-sm font-semibold truncate ${
+                            isSelected ? 'text-violet-700' : isEmpty ? 'text-zinc-400' : 'text-zinc-800'
+                          }`}>
                             {cat.name}
                           </p>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold border ${getGroupBadgeClass(cat.emission_group_id)}`}>
                               {getGroupShortLabel(cat.emission_group_id)}
                             </span>
-                            <span className="text-[10px] text-zinc-400">
-                              {count} {count === 1 ? 'fuente' : 'fuentes'}
-                            </span>
+                            {isEmpty ? (
+                              <span className="text-[10px] font-bold text-zinc-300">Vacía</span>
+                            ) : (
+                              <span className="text-[10px] text-zinc-400">
+                                {count} {count === 1 ? 'fuente' : 'fuentes'}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -243,6 +283,17 @@ export const EmissionSourceMasterDetail = () => {
                 </div>
               )}
             </div>
+
+            {/* Bottom CTA */}
+            <div className="px-4 py-3 border-t border-zinc-100 flex-shrink-0">
+              <button
+                onClick={handleOpenCreateCat}
+                className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-violet-600 hover:bg-violet-50 rounded-lg transition-colors border border-dashed border-violet-200 hover:border-violet-400"
+              >
+                <Plus size={13} />
+                Nueva categoría de emisión
+              </button>
+            </div>
           </div>
 
           {/* ── Right: Sources ────────────────────────────────────────────── */}
@@ -266,9 +317,9 @@ export const EmissionSourceMasterDetail = () => {
                   </button>
                 </div>
 
-                {/* Source search */}
-                <div className="px-6 py-2.5 border-b border-zinc-100">
-                  <div className="relative">
+                {/* Toolbar: search + filters + expand controls */}
+                <div className="px-6 py-2.5 border-b border-zinc-100 flex items-center gap-3">
+                  <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={13} />
                     <input
                       type="text"
@@ -278,6 +329,45 @@ export const EmissionSourceMasterDetail = () => {
                       className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 text-sm transition-all"
                     />
                   </div>
+
+                  {/* Filter: incomplete only */}
+                  {incompleteCount > 0 && (
+                    <button
+                      onClick={() => setShowIncompleteOnly(v => !v)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all whitespace-nowrap flex-shrink-0 ${
+                        showIncompleteOnly
+                          ? 'bg-red-50 text-red-600 border-red-200'
+                          : 'text-zinc-500 border-zinc-200 hover:text-red-600 hover:border-red-200 hover:bg-red-50'
+                      }`}
+                      title="Mostrar solo fuentes sin factores configurados"
+                    >
+                      Sin factores
+                      <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black ${
+                        showIncompleteOnly ? 'bg-red-200 text-red-700' : 'bg-zinc-200 text-zinc-600'
+                      }`}>
+                        {incompleteCount}
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Expand / collapse all */}
+                  {filteredSources.length > 0 && (
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={expandAll}
+                        className="text-xs font-semibold text-zinc-400 hover:text-violet-600 transition-colors"
+                      >
+                        Expandir todo
+                      </button>
+                      <span className="text-zinc-200 text-sm">|</span>
+                      <button
+                        onClick={collapseAll}
+                        className="text-xs font-semibold text-zinc-400 hover:text-violet-600 transition-colors"
+                      >
+                        Colapsar
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Source rows */}
@@ -301,13 +391,12 @@ export const EmissionSourceMasterDetail = () => {
                               />
                             </button>
 
-                            <div className="w-8 h-8 rounded-xl bg-violet-50 flex items-center justify-center border border-violet-100 flex-shrink-0">
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center border flex-shrink-0 ${getSourceIconBg(src.category)}`}>
                               {getSourceIcon(src.category)}
                             </div>
 
                             <div className="flex-1 min-w-0">
                               <p className="font-bold text-zinc-900 text-sm truncate">{src.name}</p>
-                              <p className="text-xs font-mono text-zinc-400">{src.code}</p>
                             </div>
 
                             <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -332,14 +421,23 @@ export const EmissionSourceMasterDetail = () => {
 
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                               <button
+                                onClick={() => handleDuplicateSource(src)}
+                                className="p-1.5 text-zinc-400 hover:text-emerald-600 hover:bg-white rounded-lg transition-all border border-transparent hover:border-zinc-200"
+                                title="Duplicar fuente"
+                              >
+                                <Copy size={13} />
+                              </button>
+                              <button
                                 onClick={() => handleOpenEditSource(src)}
                                 className="p-1.5 text-zinc-400 hover:text-violet-600 hover:bg-white rounded-lg transition-all border border-transparent hover:border-zinc-200"
+                                title="Editar fuente"
                               >
                                 <Edit2 size={13} />
                               </button>
                               <button
                                 onClick={() => handleDeleteSource(src)}
                                 className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-white rounded-lg transition-all border border-transparent hover:border-zinc-200"
+                                title="Eliminar fuente"
                               >
                                 <Trash2 size={13} />
                               </button>
@@ -365,6 +463,7 @@ export const EmissionSourceMasterDetail = () => {
                                       <tr key={f.gas_id} className="hover:bg-white/60 transition-colors">
                                         <td className="px-4 py-2">
                                           <span className="font-mono font-bold text-violet-700">{getGasLabel(f.gas_id)}</span>
+                                          <span className="block text-[10px] text-zinc-400 leading-tight">{getGasName(f.gas_id)}</span>
                                         </td>
                                         <td className="px-4 py-2 text-right font-mono font-semibold text-zinc-800">{f.factor}</td>
                                         <td className="px-4 py-2 text-right">
@@ -392,14 +491,32 @@ export const EmissionSourceMasterDetail = () => {
                         <SlidersHorizontal size={20} className="text-zinc-400" />
                       </div>
                       <p className="text-sm font-semibold text-zinc-500">
-                        {sourceSearch ? 'Sin resultados' : 'Sin fuentes de emisión'}
+                        {sourceSearch || showIncompleteOnly ? 'Sin resultados' : 'Sin fuentes de emisión'}
                       </p>
                       <p className="text-xs text-zinc-400 mt-1">
-                        {sourceSearch
-                          ? 'Intenta con otro término de búsqueda'
-                          : 'Agrega la primera fuente a esta categoría'}
+                        {showIncompleteOnly
+                          ? 'Todas las fuentes de esta categoría tienen factores configurados'
+                          : sourceSearch
+                            ? 'Intenta con otro término de búsqueda'
+                            : 'Agrega la primera fuente a esta categoría'}
                       </p>
-                      {!sourceSearch && (
+                      {sourceSearch && (
+                        <button
+                          onClick={() => setSourceSearch('')}
+                          className="mt-3 text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors"
+                        >
+                          Limpiar búsqueda
+                        </button>
+                      )}
+                      {showIncompleteOnly && !sourceSearch && (
+                        <button
+                          onClick={() => setShowIncompleteOnly(false)}
+                          className="mt-3 text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors"
+                        >
+                          Ver todas las fuentes
+                        </button>
+                      )}
+                      {!sourceSearch && !showIncompleteOnly && (
                         <button
                           onClick={handleOpenCreateSource}
                           className="mt-4 flex items-center gap-1.5 text-sm font-semibold text-violet-600 hover:text-violet-700 transition-colors"

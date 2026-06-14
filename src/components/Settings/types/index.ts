@@ -1,5 +1,3 @@
-export type GwpVersionKey = 'AR5' | 'AR6';
-
 export interface EmissionGroup {
   id: string;
   label: string;
@@ -17,16 +15,11 @@ export const EMISSION_GROUPS: EmissionGroup[] = [
   { id: '6a1c54720e939a6a25327184', label: 'Categoría 6 — Emisiones Indirectas de GEI de Otras Fuentes' },
 ];
 
-export interface GwpVersion {
-  version: GwpVersionKey;
-  value: number;
-}
-
 export interface Gas {
   id: string;
   chemical_name: string;
   formula: string;
-  gwp_versions: GwpVersion[];
+  gwp: number;
   biogenic_calculation: boolean;
   non_biogenic_calculation: boolean;
 }
@@ -54,7 +47,7 @@ export type MeasurementType = typeof MEASUREMENT_TYPES[number];
 
 export interface EmissionSource {
   id: string;
-  code: string;
+  code?: string;
   name: string;
   category: string;
   measurement_type: string;

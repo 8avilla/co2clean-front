@@ -1,17 +1,17 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, type ChangeEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { 
-  Save, 
-  ArrowLeft, 
-  Building2, 
-  MapPin, 
+import {
+  Save,
+  ArrowLeft,
+  Building2,
+  MapPin,
   Mail,
   Upload,
   X,
-  Loader2
+  Loader2,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -25,10 +25,10 @@ interface CompanyFormProps {
   isEditing?: boolean;
 }
 
-export const CompanyForm: React.FC<CompanyFormProps> = ({ initialData, isEditing = false }) => {
+export const CompanyForm = ({ initialData, isEditing = false }: CompanyFormProps) => {
   const router = useRouter();
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const [logoPreview, setLogoPreview] = React.useState<string | null>(initialData?.logoUrl ?? null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(initialData?.logoUrl ?? null);
   const { isUploading, uploadFile } = useFileUpload({
     maxSizeBytes: 1024 * 1024,
     allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'],
@@ -61,7 +61,6 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialData, isEditing
 
   const selectedDepartmentId = watch('departmentId');
 
-  // Load departments on mount
   useEffect(() => {
     LocationService.getDepartments()
       .then((deps) => setDepartments(deps))
@@ -69,7 +68,6 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialData, isEditing
       .finally(() => setLoadingLoc(false));
   }, []);
 
-  // Load municipalities when department changes
   useEffect(() => {
     if (!selectedDepartmentId) {
       setMunicipalities([]);
@@ -85,17 +83,15 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialData, isEditing
       .catch(() => toast.error('No se pudieron cargar los municipios'));
   }, [selectedDepartmentId, setValue, initialData]);
 
-  // When department changes, reset municipality selection
-  const handleDepartmentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleDepartmentChange = (e: ChangeEvent<HTMLSelectElement>) => {
     setValue('departmentId', e.target.value, { shouldValidate: true });
     setValue('municipalityId', '', { shouldValidate: false });
   };
 
-  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Show local preview immediately while uploading
     const localPreview = URL.createObjectURL(file);
     setLogoPreview(localPreview);
     setValue('logoUrl', '');
@@ -103,7 +99,6 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialData, isEditing
     const publicUrl = await uploadFile(file);
 
     if (publicUrl) {
-      // Switch preview from local blob URL to the permanent Azure URL
       setLogoPreview(publicUrl);
       setValue('logoUrl', publicUrl);
     } else {
@@ -126,55 +121,58 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialData, isEditing
       if (isEditing && initialData?.id) {
         await CompanyService.updateCompany(initialData.id, data);
         toast.success('Empresa actualizada exitosamente');
+        router.push('/empresas');
+        router.refresh();
       } else {
-        await CompanyService.createCompany(data);
-        toast.success('Empresa creada exitosamente');
+        // ── Mejora 11: Redirigir a edición tras crear para agregar sedes ──
+        const created = await CompanyService.createCompany(data);
+        toast.success('Empresa creada. Ahora agrega las sedes de la empresa.');
+        router.push(`/empresas/${created.id}`);
+        router.refresh();
       }
-      router.push('/empresas');
-      router.refresh();
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Error al guardar los datos';
-      toast.error(msg);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al guardar los datos');
     }
   };
 
   return (
     <div className="space-y-6 w-full">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3">
         <button
+          type="button"
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-zinc-500 hover:text-zinc-900 transition-colors text-sm font-medium"
+          className="p-2 -ml-2 text-zinc-400 hover:text-zinc-900 rounded-full hover:bg-zinc-100 transition-colors"
+          title="Volver"
         >
-          <ArrowLeft size={18} />
-          Volver
+          <ArrowLeft size={20} />
         </button>
+        <div>
+          <h1 className="text-xl font-bold text-zinc-900">
+            {isEditing ? `Editando: ${initialData?.name ?? 'Empresa'}` : 'Nueva Empresa'}
+          </h1>
+          <p className="text-sm text-zinc-500">
+            {isEditing
+              ? 'Modifica los datos de la empresa y gestiona sus sedes.'
+              : 'Completa los datos para registrar la empresa. Podrás agregar sedes al finalizar.'}
+          </p>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-        {/* Main Info Card */}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+
+        {/* ── Información principal ── */}
         <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">
-          <div className="p-5 border-b border-zinc-50 flex items-center justify-between bg-zinc-50/50">
-            <div className="flex items-center gap-3">
-              <Building2 className="text-teal-600" size={18} />
-              <h2 className="font-bold text-zinc-900 text-sm">Información de la Empresa</h2>
-            </div>
-            {!logoPreview && !isUploading && (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="text-xs font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1 transition-colors"
-              >
-                <Upload size={14} />
-                Subir Logo
-              </button>
-            )}
+          <div className="p-5 border-b border-zinc-50 flex items-center gap-3 bg-zinc-50/50">
+            <Building2 className="text-teal-600" size={18} />
+            {/* ── Mejora 7: Botón "Subir Logo" eliminado del header ── */}
+            <h2 className="font-bold text-zinc-900 text-sm">Información de la Empresa</h2>
           </div>
-          
+
           <div className="p-6">
             <div className="flex flex-col md:flex-row gap-8">
-              {/* Logo Column */}
-              <div className="flex flex-col items-center gap-3">
+              {/* ── Logo Column ── */}
+              <div className="flex flex-col items-center gap-2 flex-shrink-0">
                 <div className="relative group">
                   <div
                     onClick={() => !isUploading && fileInputRef.current?.click()}
@@ -195,37 +193,39 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialData, isEditing
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={logoPreview} alt="Logo preview" className="w-full h-full object-contain p-2" />
                     ) : (
-                      <div className="flex flex-col items-center gap-1 text-zinc-400">
+                      <div className="flex flex-col items-center gap-1.5 text-zinc-400">
                         <Upload size={20} />
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-center px-2">Empresa Logo</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-center px-2">
+                          Subir logo
+                        </span>
                       </div>
                     )}
                   </div>
-                  {logoPreview && (
+                  {logoPreview && !isUploading && (
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeLogo();
-                      }}
+                      onClick={(e) => { e.stopPropagation(); removeLogo(); }}
                       className="absolute -top-2 -right-2 p-1.5 bg-red-500 text-white rounded-lg shadow-lg hover:bg-red-600 transition-all"
                     >
                       <X size={12} />
                     </button>
                   )}
                 </div>
+                {/* ── Mejora 8: Formatos y tamaño indicados ── */}
+                <p className="text-[10px] text-zinc-400 text-center leading-relaxed max-w-[8rem]">
+                  JPG, PNG, SVG, WebP<br />Máx. 1 MB
+                </p>
                 <input
                   type="file"
                   ref={fileInputRef}
                   onChange={handleLogoChange}
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp,image/svg+xml"
                   className="hidden"
                 />
               </div>
 
               {/* Fields Column */}
               <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                {/* Nombre */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-zinc-600">
                     Nombre de la Empresa <span className="text-red-500">*</span>
@@ -238,7 +238,6 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialData, isEditing
                   {errors.name && <p className="text-[10px] text-red-500 font-medium">{errors.name.message}</p>}
                 </div>
 
-                {/* NIT */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-zinc-600">
                     NIT <span className="text-red-500">*</span>
@@ -246,12 +245,11 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialData, isEditing
                   <input
                     {...register('nit')}
                     className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all text-sm"
-                    placeholder="Ej. 900.123.456-7"
+                    placeholder="Ej. 900123456-7"
                   />
                   {errors.nit && <p className="text-[10px] text-red-500 font-medium">{errors.nit.message}</p>}
                 </div>
 
-                {/* Email */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-zinc-600">
                     Correo Electrónico <span className="text-red-500">*</span>
@@ -260,6 +258,7 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialData, isEditing
                     <Mail className="absolute left-3 top-2.5 text-zinc-400" size={14} />
                     <input
                       {...register('email')}
+                      type="email"
                       className="w-full pl-9 pr-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all text-sm"
                       placeholder="admin@empresa.com"
                     />
@@ -267,7 +266,6 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialData, isEditing
                   {errors.email && <p className="text-[10px] text-red-500 font-medium">{errors.email.message}</p>}
                 </div>
 
-                {/* Descripción */}
                 <div className="space-y-1.5 md:col-span-2">
                   <label className="text-xs font-bold text-zinc-600">Descripción</label>
                   <textarea
@@ -283,7 +281,7 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialData, isEditing
           </div>
         </div>
 
-        {/* Location Info Card */}
+        {/* ── Ubicación y Contacto ── */}
         <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">
           <div className="p-5 border-b border-zinc-50 flex items-center gap-3 bg-zinc-50/50">
             <MapPin className="text-teal-600" size={18} />
@@ -291,17 +289,15 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialData, isEditing
           </div>
 
           <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
-            {/* País */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-zinc-600">País</label>
               <input
                 {...register('country')}
                 readOnly
-                className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-500 outline-none text-sm"
+                className="w-full px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-400 outline-none text-sm cursor-not-allowed"
               />
             </div>
 
-            {/* Departamento */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-zinc-600">
                 Departamento <span className="text-red-500">*</span>
@@ -325,7 +321,6 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialData, isEditing
               {errors.departmentId && <p className="text-[10px] text-red-500 font-medium">{errors.departmentId.message}</p>}
             </div>
 
-            {/* Municipio */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-zinc-600">
                 Municipio <span className="text-red-500">*</span>
@@ -335,7 +330,14 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialData, isEditing
                 disabled={!selectedDepartmentId || municipalities.length === 0}
                 className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none transition-all appearance-none text-sm bg-white disabled:bg-zinc-50 disabled:text-zinc-400"
               >
-                <option value="">Seleccione...</option>
+                {/* ── Mejora 9: Placeholder explicativo cuando está deshabilitado ── */}
+                <option value="">
+                  {!selectedDepartmentId
+                    ? 'Primero seleccione un departamento'
+                    : municipalities.length === 0
+                      ? 'Cargando municipios...'
+                      : 'Seleccione...'}
+                </option>
                 {municipalities.map((mun) => (
                   <option key={mun.id} value={mun.id}>{mun.name}</option>
                 ))}
@@ -343,7 +345,6 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialData, isEditing
               {errors.municipalityId && <p className="text-[10px] text-red-500 font-medium">{errors.municipalityId.message}</p>}
             </div>
 
-            {/* Dirección */}
             <div className="space-y-1.5 md:col-span-3">
               <label className="text-xs font-bold text-zinc-600">
                 Dirección Completa <span className="text-red-500">*</span>
@@ -358,7 +359,7 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialData, isEditing
           </div>
         </div>
 
-        {/* Submit Actions */}
+        {/* Actions */}
         <div className="flex justify-end gap-4">
           <button
             type="button"
@@ -372,12 +373,16 @@ export const CompanyForm: React.FC<CompanyFormProps> = ({ initialData, isEditing
             disabled={isSubmitting || isUploading}
             className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-8 py-2.5 rounded-lg font-bold transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? 'Guardando...' : isUploading ? 'Subiendo logo...' : (
-              <>
-                <Save size={18} />
-                {isEditing ? 'Actualizar Empresa' : 'Crear Empresa'}
-              </>
-            )}
+            {isSubmitting
+              ? 'Guardando...'
+              : isUploading
+                ? 'Subiendo logo...'
+                : (
+                  <>
+                    <Save size={18} />
+                    {isEditing ? 'Actualizar Empresa' : 'Crear Empresa'}
+                  </>
+                )}
           </button>
         </div>
       </form>

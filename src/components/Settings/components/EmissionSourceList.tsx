@@ -44,7 +44,6 @@ export const EmissionSourceList = () => {
     const matchSearch =
       !searchTerm ||
       s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.category.toLowerCase().includes(searchTerm.toLowerCase());
     const matchScope = !scopeFilter || getSourceGroupId(s.category) === scopeFilter;
     return matchSearch && matchScope;
@@ -165,7 +164,6 @@ export const EmissionSourceList = () => {
                       </div>
                       <div className="min-w-0">
                         <p className="font-bold text-zinc-900 text-sm">{source.name}</p>
-                        <p className="text-xs font-mono text-zinc-400">{source.code}</p>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${scopeConf.className}`}>
                             {scopeConf.label}
@@ -229,7 +227,6 @@ export const EmissionSourceList = () => {
                             </div>
                             <div>
                               <span className="font-bold text-zinc-900 block">{source.name}</span>
-                              <span className="text-xs font-mono text-zinc-400">{source.code}</span>
                             </div>
                           </div>
                         </td>

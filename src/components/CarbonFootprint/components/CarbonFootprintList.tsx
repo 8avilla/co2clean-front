@@ -1,22 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  Plus,
-  Search,
-  Trash2,
-  Leaf,
-  ChevronLeft,
-  ChevronRight,
-  SlidersHorizontal,
-  X,
-  RefreshCw,
+  Plus, Search, Trash2, Leaf, ChevronLeft, ChevronRight,
+  SlidersHorizontal, X, RefreshCw, Edit2,
 } from 'lucide-react';
 import { ApiCarbonFootprint } from '../types';
 import { CarbonFootprintService } from '../services/carbonFootprint.service';
 import { CompanyService } from '../../Companies/services/company.service';
-import { ApiHeadquarter } from '../../Companies/types';
 import { toast } from 'sonner';
 import { usePermission } from '@/shared/hooks/usePermission';
 import { PermissionCode } from '@/shared/constants/permissions';
@@ -78,6 +70,9 @@ function buildDisplayRows(
   }));
 }
 
+// Abbreviates "Alcance 1 — Emisiones Directas de GEI" → "Alcance 1"
+const shortGroupName = (name: string) => name.split(' — ')[0] || name;
+
 const PAGE_SIZE = 10;
 
 export const CarbonFootprintRegistrationList = () => {
@@ -85,7 +80,6 @@ export const CarbonFootprintRegistrationList = () => {
   const [activeCompany] = useState(() => getActiveCompanyFromSession());
 
   const [rows, setRows] = useState<DisplayRow[]>([]);
-  const [headquarters, setHeadquarters] = useState<ApiHeadquarter[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -97,17 +91,13 @@ export const CarbonFootprintRegistrationList = () => {
   const [page, setPage] = useState(1);
 
   const loadData = useCallback(async () => {
-    if (!activeCompany) {
-      setLoading(false);
-      return;
-    }
+    if (!activeCompany) { setLoading(false); return; }
     setLoading(true);
     try {
       const [records, hq] = await Promise.all([
         CarbonFootprintService.getCarbonFootprints({ companyId: activeCompany.id }),
         CompanyService.getHeadquarters(activeCompany.id),
       ]);
-      setHeadquarters(hq);
       const hqMap = new Map(hq.map(h => [h.id, h.name]));
       setRows(buildDisplayRows(records, hqMap));
     } catch {
@@ -117,10 +107,7 @@ export const CarbonFootprintRegistrationList = () => {
     }
   }, [activeCompany]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const handleDelete = async (row: DisplayRow) => {
     if (!confirm('¿Estás seguro de eliminar este registro?')) return;
@@ -134,43 +121,33 @@ export const CarbonFootprintRegistrationList = () => {
   };
 
   const handleDeleteByFilters = async () => {
-    if (!activeCompany) return;
-    if (activeFiltersCount === 0) {
+    if (!activeCompany || activeFiltersCount === 0) {
       toast.error('Por favor, aplique al menos un filtro para eliminar registros.');
       return;
     }
 
     const headquarterId = filterSede
-      ? rows.find(r => r.sedeNombre === filterSede)?.sedeId
-      : undefined;
-
+      ? rows.find(r => r.sedeNombre === filterSede)?.sedeId : undefined;
     const emissionGroupId = filterAlcance
-      ? rows.find(r => r.alcanceNombre === filterAlcance)?.alcanceId
-      : undefined;
-
+      ? rows.find(r => r.alcanceNombre === filterAlcance)?.alcanceId : undefined;
     const emissionSourceId = filterFuente
-      ? rows.find(r => r.fuenteNombre === filterFuente)?.fuenteId
-      : undefined;
-
-    const count = filteredRows.length;
+      ? rows.find(r => r.fuenteNombre === filterFuente)?.fuenteId : undefined;
 
     const filterDescriptions: string[] = [];
     if (filterAnio) filterDescriptions.push(`Año: <b>${filterAnio}</b>`);
     if (filterSede) filterDescriptions.push(`Sede: <b>${filterSede}</b>`);
-    if (filterFuente) filterDescriptions.push(`Fuente: <b>${filterFuente}</b>`);
+    if (filterFuente) filterDescriptions.push(`Categoría: <b>${filterFuente}</b>`);
     if (filterAlcance) filterDescriptions.push(`Grupo: <b>${filterAlcance}</b>`);
-
-    const filtersHtml = filterDescriptions.join(', ');
 
     const result = await Swal.fire({
       title: '¿Eliminar registros filtrados?',
-      html: `Se eliminarán permanentemente los <b>${count}</b> registros que coinciden con los siguientes filtros:<br/><br/>${filtersHtml}<br/><br/>Esta acción no se puede deshacer y afectará los informes de estos años.`,
+      html: `Se eliminarán permanentemente los <b>${filteredRows.length}</b> registros que coinciden con:<br/><br/>${filterDescriptions.join(', ')}<br/><br/>Esta acción no se puede deshacer.`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Sí, eliminar todos',
       cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#dc2626', // red-600
-      cancelButtonColor: '#71717a', // zinc-500
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#71717a',
       reverseButtons: true,
     });
 
@@ -189,8 +166,7 @@ export const CarbonFootprintRegistrationList = () => {
       clearFilters();
       loadData();
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : 'Error al eliminar los registros';
-      toast.error(errMsg);
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar los registros');
       setLoading(false);
     }
   };
@@ -201,15 +177,16 @@ export const CarbonFootprintRegistrationList = () => {
   const uniqueFuentes = [...new Set(rows.map(r => r.fuenteNombre).filter(v => v !== '-'))].sort();
   const uniqueAlcances = [...new Set(rows.map(r => r.alcanceNombre).filter(v => v !== '-'))].sort();
 
+  // Header summary
+  const totalAnios = new Set(rows.map(r => r.anio)).size;
+  const totalSedes = new Set(rows.map(r => r.sedeNombre)).size;
+
   const activeFiltersCount = [filterAnio, filterSede, filterFuente, filterAlcance].filter(Boolean).length;
+  const hasActiveSearch = !!searchTerm || activeFiltersCount > 0;
 
   const clearFilters = () => {
-    setFilterAnio('');
-    setFilterSede('');
-    setFilterFuente('');
-    setFilterAlcance('');
-    setSearchTerm('');
-    setPage(1);
+    setFilterAnio(''); setFilterSede(''); setFilterFuente(''); setFilterAlcance('');
+    setSearchTerm(''); setPage(1);
   };
 
   const filteredRows = rows.filter(r => {
@@ -219,7 +196,6 @@ export const CarbonFootprintRegistrationList = () => {
       r.fuenteNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       String(r.anio).includes(searchTerm) ||
       (r.item ?? '').toLowerCase().includes(searchTerm.toLowerCase());
-
     return (
       matchSearch &&
       (!filterAnio || String(r.anio) === filterAnio) &&
@@ -232,13 +208,67 @@ export const CarbonFootprintRegistrationList = () => {
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const pagedRows = filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
+  const LoadModeBadge = ({ mode }: { mode: string }) => (
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${
+      mode === 'Monthly'
+        ? 'bg-sky-50 text-sky-700 border border-sky-200'
+        : 'bg-amber-50 text-amber-700 border border-amber-200'
+    }`}>
+      {mode === 'Monthly' ? 'Mensual' : 'Anual'}
+    </span>
+  );
+
+  const EmptyState = ({ colSpan }: { colSpan?: number }) => {
+    const content = (
+      <div className="px-5 py-12 flex flex-col items-center gap-3">
+        <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center">
+          <Leaf className="text-emerald-500" size={24} />
+        </div>
+        <div className="space-y-1 text-center">
+          <h3 className="font-semibold text-zinc-900">
+            {hasActiveSearch ? 'Sin resultados' : 'Sin registros de emisiones'}
+          </h3>
+          <p className="text-zinc-500 text-sm">
+            {hasActiveSearch
+              ? 'No hay registros que coincidan con los filtros aplicados.'
+              : 'Comienza registrando la primera emisión de carbono de tu empresa.'}
+          </p>
+        </div>
+        {hasActiveSearch ? (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-zinc-200 text-sm font-semibold text-zinc-600 hover:bg-zinc-50 transition-colors"
+          >
+            <X size={15} />
+            Limpiar filtros
+          </button>
+        ) : hasPermission(PermissionCode.CREATE_CARBON_FOOTPRINT) && (
+          <Link
+            href="/huella-carbono/nueva"
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-colors"
+          >
+            <Plus size={16} />
+            Registrar primera emisión
+          </Link>
+        )}
+      </div>
+    );
+    return colSpan
+      ? <tr><td colSpan={colSpan}>{content}</td></tr>
+      : content;
+  };
+
   return (
     <div className="space-y-6 w-full">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">Emisiones de huella de carbono</h1>
-          <p className="text-sm text-zinc-500">Administra los registros de emisiones de las empresas.</p>
+          <p className="text-sm text-zinc-500">
+            {!loading && rows.length > 0
+              ? `${rows.length.toLocaleString('es-CO')} ${rows.length === 1 ? 'registro' : 'registros'} · ${totalAnios} ${totalAnios === 1 ? 'año' : 'años'} · ${totalSedes} ${totalSedes === 1 ? 'sede' : 'sedes'}`
+              : 'Administra los registros de emisiones de las empresas.'}
+          </p>
         </div>
         {hasPermission(PermissionCode.CREATE_CARBON_FOOTPRINT) && (
           <Link
@@ -254,24 +284,28 @@ export const CarbonFootprintRegistrationList = () => {
       <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">
         {/* Toolbar */}
         <div className="p-4 border-b border-zinc-100 bg-zinc-50/50 flex flex-col gap-3">
-          <div className="flex flex-col sm:flex-row gap-3 justify-between items-center">
+          <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+            {/* Search */}
             <div className="relative w-full sm:w-96">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
               <input
                 type="text"
-                placeholder="Buscar por sede, fuente, ítem o año..."
+                placeholder="Buscar por sede, categoría, ítem o año..."
                 value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                onChange={e => { setSearchTerm(e.target.value); setPage(1); }}
                 className="w-full pl-10 pr-4 py-2 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
               />
             </div>
-            <div className="flex items-center gap-2">
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Standard actions */}
               <button
                 onClick={() => setShowFilters(v => !v)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold border transition-all ${showFilters || activeFiltersCount > 0
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold border transition-all ${
+                  showFilters || activeFiltersCount > 0
                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-500/20'
                     : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
-                  }`}
+                }`}
               >
                 <SlidersHorizontal size={16} />
                 Filtros
@@ -290,17 +324,6 @@ export const CarbonFootprintRegistrationList = () => {
                   <X size={16} />
                 </button>
               )}
-              {activeFiltersCount > 0 && hasPermission(PermissionCode.DELETE_CARBON_FOOTPRINT) && (
-                <button
-                  onClick={handleDeleteByFilters}
-                  disabled={loading || filteredRows.length === 0}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold border border-red-200 text-red-600 bg-white hover:bg-red-50 hover:border-red-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  title="Eliminar registros filtrados"
-                >
-                  <Trash2 size={16} />
-                  <span className="hidden sm:inline">Eliminar filtrados ({filteredRows.length})</span>
-                </button>
-              )}
               <button
                 onClick={() => loadData()}
                 disabled={loading}
@@ -309,6 +332,21 @@ export const CarbonFootprintRegistrationList = () => {
               >
                 <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
               </button>
+
+              {/* Destructive action — visually separated */}
+              {activeFiltersCount > 0 && hasPermission(PermissionCode.DELETE_CARBON_FOOTPRINT) && (
+                <div className="border-l border-zinc-200 pl-2">
+                  <button
+                    onClick={handleDeleteByFilters}
+                    disabled={loading || filteredRows.length === 0}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold border border-red-200 text-red-600 bg-white hover:bg-red-50 hover:border-red-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    title="Eliminar todos los registros que coinciden con los filtros activos"
+                  >
+                    <Trash2 size={16} />
+                    <span className="hidden sm:inline">Eliminar filtrados ({filteredRows.length})</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -316,44 +354,32 @@ export const CarbonFootprintRegistrationList = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-zinc-100 animate-in fade-in slide-in-from-top-2">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Año</label>
-                <select
-                  value={filterAnio}
-                  onChange={e => { setFilterAnio(e.target.value); setPage(1); }}
-                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none bg-white"
-                >
+                <select value={filterAnio} onChange={e => { setFilterAnio(e.target.value); setPage(1); }}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none bg-white">
                   <option value="">Todos los años</option>
                   {uniqueAnios.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Sede</label>
-                <select
-                  value={filterSede}
-                  onChange={e => { setFilterSede(e.target.value); setPage(1); }}
-                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none bg-white"
-                >
+                <select value={filterSede} onChange={e => { setFilterSede(e.target.value); setPage(1); }}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none bg-white">
                   <option value="">Todas las sedes</option>
                   {uniqueSedes.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Fuente de emisión</label>
-                <select
-                  value={filterFuente}
-                  onChange={e => { setFilterFuente(e.target.value); setPage(1); }}
-                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none bg-white"
-                >
-                  <option value="">Todas las fuentes</option>
+                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Categoría de fuente de emisión</label>
+                <select value={filterFuente} onChange={e => { setFilterFuente(e.target.value); setPage(1); }}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none bg-white">
+                  <option value="">Todas las categorías</option>
                   {uniqueFuentes.map(f => <option key={f} value={f}>{f}</option>)}
                 </select>
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Grupo de Emisiones</label>
-                <select
-                  value={filterAlcance}
-                  onChange={e => { setFilterAlcance(e.target.value); setPage(1); }}
-                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none bg-white"
-                >
+                <select value={filterAlcance} onChange={e => { setFilterAlcance(e.target.value); setPage(1); }}
+                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none bg-white">
                   <option value="">Todos los grupos</option>
                   {uniqueAlcances.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
@@ -370,26 +396,46 @@ export const CarbonFootprintRegistrationList = () => {
               Cargando registros...
             </div>
           ) : pagedRows.length === 0 ? (
-            <div className="px-4 py-12 flex flex-col items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center">
-                <Leaf className="text-emerald-500" size={24} />
-              </div>
-              <p className="text-zinc-500 text-sm text-center">
-                {activeFiltersCount > 0 || searchTerm
-                  ? 'No hay registros que coincidan con los filtros aplicados.'
-                  : 'No se encontraron registros de huella de carbono.'}
-              </p>
-            </div>
+            <EmptyState />
           ) : (
-            pagedRows.map((row) => (
+            pagedRows.map(row => (
               <div key={row.id} className="p-4 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="font-semibold text-zinc-900 text-sm truncate">{row.sedeNombre}</p>
-                    <p className="text-xs text-zinc-500">{row.fuenteNombre}</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">{row.fuenteNombre}</p>
+                    {row.subfuenteNombre !== '-' && (
+                      <p className="text-xs text-zinc-400 italic">{row.subfuenteNombre}</p>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <span className="px-2 py-0.5 rounded-md text-xs font-black bg-zinc-100 text-zinc-700 tabular-nums">
+                      {row.anio}
+                    </span>
+                    <LoadModeBadge mode={row.modoCarga} />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-wrap min-w-0">
+                    {row.item && (
+                      <span className="px-2 py-0.5 bg-zinc-100 text-zinc-800 rounded font-mono text-xs">{row.item}</span>
+                    )}
+                    <span className="text-sm font-bold text-zinc-900 tabular-nums">
+                      {row.cantidad !== undefined ? row.cantidad.toLocaleString('es-CO') : '—'}
+                      {row.unidadNombre !== '-' && (
+                        <span className="ml-1 text-xs font-medium text-zinc-400">{row.unidadNombre}</span>
+                      )}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    <span className="text-sm font-bold text-zinc-800">{row.anio}</span>
+                    {hasPermission(PermissionCode.CREATE_CARBON_FOOTPRINT) && (
+                      <Link
+                        href={`/huella-carbono/${row.id}/editar`}
+                        className="p-1.5 text-zinc-400 hover:text-emerald-600 rounded-lg transition-colors"
+                      >
+                        <Edit2 size={15} />
+                      </Link>
+                    )}
                     {hasPermission(PermissionCode.DELETE_CARBON_FOOTPRINT) && (
                       <button onClick={() => handleDelete(row)} className="p-1.5 text-zinc-400 hover:text-red-600 rounded-lg transition-colors">
                         <Trash2 size={15} />
@@ -397,16 +443,9 @@ export const CarbonFootprintRegistrationList = () => {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {row.item && (
-                    <span className="px-2 py-0.5 bg-zinc-100 text-zinc-800 rounded font-mono text-xs">{row.item}</span>
-                  )}
-                  <span className="text-xs font-bold text-zinc-900 tabular-nums">
-                    {row.cantidad !== undefined ? row.cantidad.toLocaleString('es-CO') : '-'} {row.unidadNombre}
-                  </span>
-                  <span className="text-xs text-zinc-500 italic">{row.subfuenteNombre}</span>
-                </div>
-                <p className="text-xs text-zinc-400">{row.alcanceNombre}</p>
+                <p className="text-xs text-zinc-400" title={row.alcanceNombre}>
+                  {shortGroupName(row.alcanceNombre)}
+                </p>
               </div>
             ))
           )}
@@ -417,66 +456,74 @@ export const CarbonFootprintRegistrationList = () => {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="bg-zinc-50/80 border-b border-zinc-100">
+                <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap">Año</th>
                 <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap">Sede</th>
+                <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap">Grupo</th>
+                <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap">Categoría de fuente de emisión</th>
+                <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap">Fuente de emisión</th>
                 <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap">Ítem</th>
                 <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap text-right">Consumo</th>
-                <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap">Unidad</th>
-                <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap">Año</th>
-                <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap">Grupo de Emisiones</th>
-                <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap">Fuente de emisión</th>
-                <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap">Subfuente</th>
                 <th className="px-5 py-3 font-semibold text-zinc-600 whitespace-nowrap text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-5 py-10 text-center text-zinc-400">
+                  <td colSpan={8} className="px-5 py-10 text-center text-zinc-400">
                     <RefreshCw size={20} className="animate-spin mx-auto mb-2" />
                     Cargando registros...
                   </td>
                 </tr>
               ) : pagedRows.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="px-5 py-12 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center">
-                        <Leaf className="text-emerald-500" size={24} />
-                      </div>
-                      <div className="space-y-1">
-                        <h3 className="font-semibold text-zinc-900">No hay registros</h3>
-                        <p className="text-zinc-500 text-sm">
-                          {activeFiltersCount > 0 || searchTerm
-                            ? 'No hay registros que coincidan con los filtros aplicados.'
-                            : 'No se encontraron registros de huella de carbono.'}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
+                <EmptyState colSpan={8} />
               ) : (
-                pagedRows.map((row) => (
+                pagedRows.map(row => (
                   <tr key={row.id} className="hover:bg-zinc-50/40 transition-colors group">
+                    {/* Año + Modo de carga */}
+                    <td className="px-5 py-3">
+                      <span className="block text-sm font-bold text-zinc-800 tabular-nums">{row.anio}</span>
+                      <LoadModeBadge mode={row.modoCarga} />
+                    </td>
                     <td className="px-5 py-3 text-zinc-700 font-medium">{row.sedeNombre}</td>
+                    {/* Grupo abreviado con nombre completo en tooltip */}
                     <td className="px-5 py-3">
-                      <span className="px-2 py-0.5 bg-zinc-100 text-zinc-800 rounded font-mono text-xs">
-                        {row.item ?? '-'}
+                      <span className="text-xs font-semibold text-zinc-600 cursor-default" title={row.alcanceNombre}>
+                        {shortGroupName(row.alcanceNombre)}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-right font-bold text-zinc-900 tabular-nums">
-                      {row.cantidad !== undefined ? row.cantidad.toLocaleString('es-CO') : '-'}
-                    </td>
-                    <td className="px-5 py-3 text-zinc-500">{row.unidadNombre}</td>
-                    <td className="px-5 py-3">
-                      <span className="text-sm font-semibold text-zinc-800">
-                        {row.anio}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-zinc-600 text-xs">{row.alcanceNombre}</td>
                     <td className="px-5 py-3 text-zinc-700 text-xs font-medium">{row.fuenteNombre}</td>
-                    <td className="px-5 py-3 text-zinc-500 text-xs italic">{row.subfuenteNombre}</td>
+                    <td className="px-5 py-3 text-zinc-400 text-xs italic">
+                      {row.subfuenteNombre !== '-' ? row.subfuenteNombre : '—'}
+                    </td>
+                    <td className="px-5 py-3">
+                      {row.item ? (
+                        <span className="px-2 py-0.5 bg-zinc-100 text-zinc-800 rounded font-mono text-xs">
+                          {row.item}
+                        </span>
+                      ) : (
+                        <span className="text-zinc-300">—</span>
+                      )}
+                    </td>
+                    {/* Consumo + Unidad en una sola celda */}
                     <td className="px-5 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="font-bold text-zinc-900 tabular-nums">
+                        {row.cantidad !== undefined ? row.cantidad.toLocaleString('es-CO') : '—'}
+                      </span>
+                      {row.unidadNombre !== '-' && (
+                        <span className="ml-1 text-xs text-zinc-400 font-medium">{row.unidadNombre}</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {hasPermission(PermissionCode.CREATE_CARBON_FOOTPRINT) && (
+                          <Link
+                            href={`/huella-carbono/${row.id}/editar`}
+                            className="p-2 text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                            title="Editar registro"
+                          >
+                            <Edit2 size={16} />
+                          </Link>
+                        )}
                         {hasPermission(PermissionCode.DELETE_CARBON_FOOTPRINT) && (
                           <button
                             onClick={() => handleDelete(row)}
@@ -500,7 +547,9 @@ export const CarbonFootprintRegistrationList = () => {
           <span className="text-zinc-500 text-xs">
             Página <span className="font-bold text-zinc-700">{page}</span> de{' '}
             <span className="font-bold text-zinc-700">{totalPages}</span>
-            {' '}— {filteredRows.length} registros en total
+            {' '}—{' '}
+            {filteredRows.length} {filteredRows.length === 1 ? 'registro' : 'registros'}
+            {filteredRows.length !== rows.length && ` de ${rows.length} totales`}
           </span>
           <div className="flex items-center gap-1">
             <button
@@ -524,10 +573,11 @@ export const CarbonFootprintRegistrationList = () => {
                   <button
                     key={p}
                     onClick={() => setPage(p as number)}
-                    className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors ${page === p
+                    className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors ${
+                      page === p
                         ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-500/20'
                         : 'border border-zinc-200 text-zinc-600 hover:bg-zinc-100'
-                      }`}
+                    }`}
                   >
                     {p}
                   </button>
@@ -543,9 +593,6 @@ export const CarbonFootprintRegistrationList = () => {
           </div>
         </div>
       </div>
-
-      {/* Hidden — used only by filter to pass headquarters to loadData */}
-      {headquarters.length === 0 && null}
     </div>
   );
 };

@@ -76,7 +76,7 @@ export const BranchList: React.FC<BranchListProps> = ({ companyId, initialBranch
         </div>
         <button
           onClick={handleAdd}
-          className="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-all shadow-sm active:scale-95"
+          className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-all shadow-sm active:scale-95"
         >
           <Plus size={16} />
           Añadir Sede
