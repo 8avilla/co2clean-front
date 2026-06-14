@@ -362,8 +362,58 @@ export const CarbonFootprintRegistrationList = () => {
           )}
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto w-full">
+        {/* Mobile card view */}
+        <div className="md:hidden divide-y divide-zinc-100">
+          {loading ? (
+            <div className="px-4 py-10 text-center text-zinc-400">
+              <RefreshCw size={20} className="animate-spin mx-auto mb-2" />
+              Cargando registros...
+            </div>
+          ) : pagedRows.length === 0 ? (
+            <div className="px-4 py-12 flex flex-col items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center">
+                <Leaf className="text-emerald-500" size={24} />
+              </div>
+              <p className="text-zinc-500 text-sm text-center">
+                {activeFiltersCount > 0 || searchTerm
+                  ? 'No hay registros que coincidan con los filtros aplicados.'
+                  : 'No se encontraron registros de huella de carbono.'}
+              </p>
+            </div>
+          ) : (
+            pagedRows.map((row) => (
+              <div key={row.id} className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-zinc-900 text-sm truncate">{row.sedeNombre}</p>
+                    <p className="text-xs text-zinc-500">{row.fuenteNombre}</p>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <span className="text-sm font-bold text-zinc-800">{row.anio}</span>
+                    {hasPermission(PermissionCode.DELETE_CARBON_FOOTPRINT) && (
+                      <button onClick={() => handleDelete(row)} className="p-1.5 text-zinc-400 hover:text-red-600 rounded-lg transition-colors">
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {row.item && (
+                    <span className="px-2 py-0.5 bg-zinc-100 text-zinc-800 rounded font-mono text-xs">{row.item}</span>
+                  )}
+                  <span className="text-xs font-bold text-zinc-900 tabular-nums">
+                    {row.cantidad !== undefined ? row.cantidad.toLocaleString('es-CO') : '-'} {row.unidadNombre}
+                  </span>
+                  <span className="text-xs text-zinc-500 italic">{row.subfuenteNombre}</span>
+                </div>
+                <p className="text-xs text-zinc-400">{row.alcanceNombre}</p>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop table view */}
+        <div className="hidden md:block overflow-x-auto w-full">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="bg-zinc-50/80 border-b border-zinc-100">

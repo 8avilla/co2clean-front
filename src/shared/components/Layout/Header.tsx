@@ -7,17 +7,19 @@ import {
   Settings,
   LogOut,
   Building,
-  Loader2
+  Loader2,
+  Menu,
 } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { AuthService } from '@/components/Auth/services/auth.service';
 import Cookies from 'js-cookie';
 import { toast } from 'sonner';
+import { useSidebar } from './SidebarContext';
 
 export const Header = () => {
   const router = useRouter();
+  const { toggleSidebar } = useSidebar();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isCompanyOpen, setIsCompanyOpen] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
@@ -124,12 +126,16 @@ export const Header = () => {
   }, []);
 
   return (
-    <header className="h-16 bg-white border-b border-zinc-200 flex items-center justify-between px-8 sticky top-0 z-30">
-      {/* Left side (Greeting or Breadcrumbs) */}
-      <div className="hidden md:block">
-        <p className="text-sm font-medium text-zinc-500">
-
-        </p>
+    <header className="h-16 bg-white border-b border-zinc-200 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30">
+      {/* Left side — hamburger on mobile, empty on desktop */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={toggleSidebar}
+          className="md:hidden p-2 rounded-lg text-zinc-500 hover:bg-zinc-100 transition-colors"
+          aria-label="Abrir menú"
+        >
+          <Menu size={20} />
+        </button>
       </div>
 
       {/* Right side (Actions & Profile) */}

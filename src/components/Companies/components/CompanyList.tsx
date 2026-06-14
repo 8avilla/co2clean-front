@@ -87,7 +87,63 @@ export const CompanyList = () => {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile card view */}
+        <div className="md:hidden divide-y divide-zinc-100">
+          {loading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="p-4 animate-pulse space-y-2">
+                <div className="h-4 bg-zinc-100 rounded w-2/3" />
+                <div className="h-3 bg-zinc-100 rounded w-1/3" />
+              </div>
+            ))
+          ) : filteredCompanies.length > 0 ? (
+            filteredCompanies.map((company) => (
+              <div key={company.id} className="p-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold overflow-hidden border border-teal-100/50 flex-shrink-0">
+                    {company.logoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={company.logoUrl} alt={company.name} className="w-full h-full object-contain p-1" />
+                    ) : (
+                      company.name.charAt(0)
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold text-zinc-900 text-sm truncate">{company.name}</p>
+                    <p className="text-xs text-zinc-500">NIT: {company.nit}</p>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      {(company.municipality?.name || company.department?.name) && (
+                        <span className="text-xs text-zinc-500">
+                          {company.municipality?.name ?? ''}{company.department?.name ? `, ${company.department.name}` : ''}
+                        </span>
+                      )}
+                      <span className="px-2 py-0.5 rounded-lg bg-zinc-100 text-zinc-700 text-xs font-bold border border-zinc-200">
+                        {(company.headquarters ?? []).length} sedes
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {hasPermission(PermissionCode.UPDATE_COMPANIES) && (
+                    <Link href={`/empresas/${company.id}`} className="p-2 text-zinc-400 hover:text-teal-600 rounded-lg transition-colors">
+                      <Edit2 size={16} />
+                    </Link>
+                  )}
+                  {hasPermission(PermissionCode.DELETE_COMPANIES) && (
+                    <button onClick={() => handleDelete(company.id!)} className="p-2 text-zinc-400 hover:text-red-600 rounded-lg transition-colors">
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="px-6 py-12 text-center text-zinc-500 text-sm">No se encontraron empresas.</p>
+          )}
+        </div>
+
+        {/* Desktop table view */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-zinc-50/50 border-b border-zinc-100">

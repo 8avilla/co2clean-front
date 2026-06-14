@@ -179,7 +179,57 @@ export const UserList = () => {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile card view */}
+        <div className="md:hidden divide-y divide-zinc-100">
+          {loading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="p-4 animate-pulse space-y-2">
+                <div className="h-4 bg-zinc-100 rounded w-2/3" />
+                <div className="h-3 bg-zinc-100 rounded w-1/2" />
+              </div>
+            ))
+          ) : filteredUsers.length > 0 ? (
+            filteredUsers.map((user) => (
+              <div key={user.id} className="p-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500 flex-shrink-0">
+                    <User size={20} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold text-zinc-900 text-sm truncate">{user.name}</p>
+                    <p className="text-xs text-zinc-500 truncate">{user.email}</p>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${getRoleBadgeColor(user.role?.name)}`}>
+                        {user.role?.name ?? '—'}
+                      </span>
+                      <span className="flex items-center gap-1 text-xs text-zinc-500">
+                        <Building2 size={12} className="text-zinc-400" />
+                        {user.company?.name ?? '—'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {hasPermission(PermissionCode.UPDATE_USERS) && (
+                    <Link href={`/usuarios/${user.id}`} className="p-2 text-zinc-400 hover:text-zinc-900 rounded-lg transition-colors">
+                      <Edit2 size={16} />
+                    </Link>
+                  )}
+                  {hasPermission(PermissionCode.DELETE_USERS) && (
+                    <button onClick={() => handleDelete(user.id!)} className="p-2 text-zinc-400 hover:text-red-600 rounded-lg transition-colors">
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="px-6 py-12 text-center text-zinc-500 text-sm">No se encontraron usuarios.</p>
+          )}
+        </div>
+
+        {/* Desktop table view */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-zinc-50/50 border-b border-zinc-100">
