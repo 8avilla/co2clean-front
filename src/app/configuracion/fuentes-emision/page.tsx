@@ -1,5 +1,5 @@
 import { MainLayout } from '@/shared/components/Layout/MainLayout';
-import { EmissionSourceList } from '@/components/Settings/components/EmissionSourceList';
+import { EmissionSourceMasterDetail } from '@/components/Settings/components/EmissionSourceMasterDetail';
 import { PermissionGuard } from '@/shared/components/PermissionGuard';
 import { PermissionCode } from '@/shared/constants/permissions';
 import { Metadata } from 'next';
@@ -12,7 +12,7 @@ export default function EmissionSourcesPage() {
   return (
     <MainLayout>
       <PermissionGuard permission={PermissionCode.MANAGE_EMISSION_SOURCES}>
-        <EmissionSourceList />
+        <EmissionSourceMasterDetail />
       </PermissionGuard>
     </MainLayout>
   );

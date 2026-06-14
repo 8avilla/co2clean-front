@@ -208,7 +208,7 @@ export const EmissionSourceList = () => {
                 <tr className="bg-zinc-50/50 border-b border-zinc-100">
                   <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Fuente</th>
                   <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Alcance</th>
-                  <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Categoría</th>
+                  <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Categoría de Emisión</th>
                   <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Tipo de medida</th>
                   <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Incertidumbre</th>
                   <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Factores</th>

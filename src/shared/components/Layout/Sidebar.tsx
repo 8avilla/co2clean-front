@@ -228,7 +228,7 @@ export const Sidebar = () => {
           <div className="space-y-1">
             {isCollapsed ? (
               <Link
-                href="/configuracion/gases"
+                href="/configuracion/fuentes-emision"
                 title="Configuración"
                 onClick={handleNavClick}
                 className={cn(
@@ -249,6 +249,23 @@ export const Sidebar = () => {
                 </div>
 
                 <div className="pl-8 pr-2 space-y-1">
+                  {(hasPermission(PermissionCode.MANAGE_EMISSION_SOURCES) ||
+                    hasPermission(PermissionCode.MANAGE_EMISSION_SOURCE_CATEGORIES)) && (
+                    <Link
+                      href="/configuracion/fuentes-emision"
+                      onClick={handleNavClick}
+                      className={cn(
+                        'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                        pathname.startsWith('/configuracion/fuentes-emision') ||
+                        pathname.startsWith('/configuracion/categorias-fuentes')
+                          ? 'text-violet-600 bg-violet-50/50'
+                          : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
+                      )}
+                    >
+                      Fuentes de Emisión
+                    </Link>
+                  )}
+
                   {hasPermission(PermissionCode.MANAGE_GASES) && (
                     <Link
                       href="/configuracion/gases"
@@ -260,37 +277,7 @@ export const Sidebar = () => {
                           : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
                       )}
                     >
-                      Gases
-                    </Link>
-                  )}
-
-                  {hasPermission(PermissionCode.MANAGE_EMISSION_SOURCES) && (
-                    <Link
-                      href="/configuracion/fuentes-emision"
-                      onClick={handleNavClick}
-                      className={cn(
-                        'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                        pathname === '/configuracion/fuentes-emision'
-                          ? 'text-violet-600 bg-violet-50/50'
-                          : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
-                      )}
-                    >
-                      Fuentes de Emisión
-                    </Link>
-                  )}
-
-                  {hasPermission(PermissionCode.MANAGE_EMISSION_SOURCE_CATEGORIES) && (
-                    <Link
-                      href="/configuracion/categorias-fuentes"
-                      onClick={handleNavClick}
-                      className={cn(
-                        'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                        pathname === '/configuracion/categorias-fuentes'
-                          ? 'text-violet-600 bg-violet-50/50'
-                          : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
-                      )}
-                    >
-                      Categorías de Fuentes
+                      Gases de Efecto Invernadero
                     </Link>
                   )}
                 </div>

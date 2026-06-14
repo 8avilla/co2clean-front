@@ -8,6 +8,7 @@ import { EMISSION_SOURCE_CATEGORIES_MOCK } from '../data/emission-source-categor
 
 interface EmissionSourceFormModalProps {
   source: EmissionSource | undefined;
+  defaultCategory?: string;
   onSave: (source: Omit<EmissionSource, 'id'> & { id?: string }) => void;
   onClose: () => void;
 }
@@ -27,7 +28,7 @@ const UNITS_BY_MEASUREMENT_TYPE: Record<string, string[]> = {
   Cantidad:  ['unidad', 'docena', 'caja'],
 };
 
-export const EmissionSourceFormModal = ({ source, onSave, onClose }: EmissionSourceFormModalProps) => {
+export const EmissionSourceFormModal = ({ source, defaultCategory, onSave, onClose }: EmissionSourceFormModalProps) => {
   const isEditing = !!source;
   const gases: Gas[] = GASES_MOCK;
   const newCatNameRef = useRef<HTMLInputElement>(null);
@@ -36,7 +37,6 @@ export const EmissionSourceFormModal = ({ source, onSave, onClose }: EmissionSou
 
   // Info fields
   const [name, setName] = useState('');
-  const [code, setCode] = useState('');
   const [category, setCategory] = useState(EMISSION_SOURCE_CATEGORIES_MOCK[0].name);
   const [measurementType, setMeasurementType] = useState<string>(MEASUREMENT_TYPES[0]);
   const [uncertainty, setUncertainty] = useState(0);
@@ -53,15 +53,13 @@ export const EmissionSourceFormModal = ({ source, onSave, onClose }: EmissionSou
   useEffect(() => {
     if (source) {
       setName(source.name);
-      setCode(source.code);
       setCategory(source.category);
       setMeasurementType(source.measurement_type || MEASUREMENT_TYPES[0]);
       setUncertainty(source.uncertainty ?? 0);
       setFactors(source.factors.map(f => ({ ...f })));
     } else {
       setName('');
-      setCode('');
-      setCategory(localCategories[0]?.name ?? '');
+      setCategory(defaultCategory ?? localCategories[0]?.name ?? '');
       setMeasurementType(MEASUREMENT_TYPES[0]);
       setUncertainty(0);
       setFactors([]);
@@ -170,7 +168,7 @@ export const EmissionSourceFormModal = ({ source, onSave, onClose }: EmissionSou
     onSave({
       id: source?.id,
       name: name.trim(),
-      code: code.trim(),
+      code: '',
       category,
       measurement_type: measurementType,
       uncertainty,
@@ -180,7 +178,7 @@ export const EmissionSourceFormModal = ({ source, onSave, onClose }: EmissionSou
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 flex-shrink-0">
@@ -250,18 +248,6 @@ export const EmissionSourceFormModal = ({ source, onSave, onClose }: EmissionSou
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Código interno</label>
-                  <input
-                    required
-                    type="text"
-                    value={code}
-                    onChange={e => setCode(e.target.value)}
-                    placeholder="Ej: combustible_diesel_movil"
-                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 text-sm font-mono transition-all"
-                  />
-                </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Tipo de medida</label>
@@ -292,7 +278,7 @@ export const EmissionSourceFormModal = ({ source, onSave, onClose }: EmissionSou
 
                 {/* Category with express creation */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Categoría</label>
+                  <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Categoría de Emisión</label>
                   <select
                     value={showNewCat ? NEW_CATEGORY_VALUE : category}
                     onChange={e => handleCategorySelectChange(e.target.value)}
@@ -302,12 +288,12 @@ export const EmissionSourceFormModal = ({ source, onSave, onClose }: EmissionSou
                       <option key={cat.id} value={cat.name}>{cat.name}</option>
                     ))}
                     <option disabled>──────────────</option>
-                    <option value={NEW_CATEGORY_VALUE}>＋ Nueva categoría...</option>
+                    <option value={NEW_CATEGORY_VALUE}>＋ Nueva categoría de emisión...</option>
                   </select>
 
                   {showNewCat && (
                     <div className="mt-1 p-4 rounded-xl border border-violet-200 bg-violet-50/40 space-y-3">
-                      <p className="text-xs font-bold text-violet-700 uppercase tracking-wider">Nueva categoría</p>
+                      <p className="text-xs font-bold text-violet-700 uppercase tracking-wider">Nueva categoría de emisión</p>
 
                       <div className="space-y-1">
                         <label className="text-xs font-semibold text-zinc-500">Nombre</label>

@@ -49,7 +49,7 @@ export const EmissionSourceCategoryFormModal = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
           <h2 className="text-lg font-bold text-zinc-900">
-            {isEditing ? 'Editar categoría' : 'Nueva categoría'}
+            {isEditing ? 'Editar categoría de emisión' : 'Nueva categoría de emisión'}
           </h2>
           <button
             onClick={onClose}
@@ -118,7 +118,7 @@ export const EmissionSourceCategoryFormModal = ({
               type="submit"
               className="px-5 py-2 text-sm font-bold bg-violet-600 hover:bg-violet-700 text-white rounded-lg transition-all shadow-sm active:scale-95"
             >
-              {isEditing ? 'Guardar cambios' : 'Crear categoría'}
+              {isEditing ? 'Guardar cambios' : 'Crear categoría de emisión'}
             </button>
           </div>
         </form>
