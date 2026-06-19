@@ -26,7 +26,7 @@ import {
 export class UnitTypesService {
   static async getAll(search?: string): Promise<ApiUnitType[]> {
     const res = await apiFetch<ApiUnitType[]>('/api/unit-types', {
-      params: { limit: 100, search },
+      params: { limit: 1000, search },
     });
     return res ?? [];
   }
@@ -56,7 +56,7 @@ export class EmissionGroupsService {
     search?: string;
   }): Promise<ApiEmissionGroup[]> {
     const res = await apiFetch<ApiEmissionGroup[]>('/api/emission-groups', {
-      params: { limit: 100, ...params },
+      params: { limit: 1000, ...params },
     });
     return res ?? [];
   }
@@ -78,58 +78,58 @@ export class EmissionGroupsService {
   }
 }
 
-// ── Emission Sources ─────────────────────────────────────────────────────────
+// ── Emission Sources (= emission-source-categories in backend) ───────────────
 
 export class EmissionSourcesService {
   static async getAll(params?: {
-    unitTypeId?: string;
+    emissionGroupId?: string;
     search?: string;
   }): Promise<ApiEmissionSource[]> {
-    const res = await apiFetch<ApiEmissionSource[]>('/api/emission-sources', {
-      params: { limit: 100, ...params },
+    const res = await apiFetch<ApiEmissionSource[]>('/api/emission-source-categories', {
+      params: { limit: 1000, ...params },
     });
     return res ?? [];
   }
 
   static async getById(id: string): Promise<ApiEmissionSource | null> {
-    return apiFetch<ApiEmissionSource>(`/api/emission-sources/${id}`);
+    return apiFetch<ApiEmissionSource>(`/api/emission-source-categories/${id}`);
   }
 
   static async create(data: CreateEmissionSourcePayload): Promise<ApiEmissionSource> {
-    return apiFetch<ApiEmissionSource>('/api/emission-sources', { method: 'POST', body: data });
+    return apiFetch<ApiEmissionSource>('/api/emission-source-categories', { method: 'POST', body: data });
   }
 
   static async update(id: string, data: UpdateEmissionSourcePayload): Promise<ApiEmissionSource> {
-    return apiFetch<ApiEmissionSource>(`/api/emission-sources/${id}`, {
+    return apiFetch<ApiEmissionSource>(`/api/emission-source-categories/${id}`, {
       method: 'PUT',
       body: data,
     });
   }
 
   static async delete(id: string): Promise<void> {
-    await apiFetch<void>(`/api/emission-sources/${id}`, { method: 'DELETE' });
+    await apiFetch<void>(`/api/emission-source-categories/${id}`, { method: 'DELETE' });
   }
 }
 
-// ── Emission Subsources ──────────────────────────────────────────────────────
+// ── Emission Subsources (= emission-sources in backend) ──────────────────────
 
 export class EmissionSubsourcesService {
   static async getAll(params?: {
-    emissionSourceId?: string;
+    emissionSourceCategoryId?: string;
     search?: string;
   }): Promise<ApiEmissionSubsource[]> {
-    const res = await apiFetch<ApiEmissionSubsource[]>('/api/emission-subsources', {
-      params: { limit: 100, ...params },
+    const res = await apiFetch<ApiEmissionSubsource[]>('/api/emission-sources', {
+      params: { limit: 1000, ...params },
     });
     return res ?? [];
   }
 
   static async getById(id: string): Promise<ApiEmissionSubsource | null> {
-    return apiFetch<ApiEmissionSubsource>(`/api/emission-subsources/${id}`);
+    return apiFetch<ApiEmissionSubsource>(`/api/emission-sources/${id}`);
   }
 
   static async create(data: CreateEmissionSubsourcePayload): Promise<ApiEmissionSubsource> {
-    return apiFetch<ApiEmissionSubsource>('/api/emission-subsources', {
+    return apiFetch<ApiEmissionSubsource>('/api/emission-sources', {
       method: 'POST',
       body: data,
     });
@@ -139,14 +139,14 @@ export class EmissionSubsourcesService {
     id: string,
     data: UpdateEmissionSubsourcePayload
   ): Promise<ApiEmissionSubsource> {
-    return apiFetch<ApiEmissionSubsource>(`/api/emission-subsources/${id}`, {
+    return apiFetch<ApiEmissionSubsource>(`/api/emission-sources/${id}`, {
       method: 'PUT',
       body: data,
     });
   }
 
   static async delete(id: string): Promise<void> {
-    await apiFetch<void>(`/api/emission-subsources/${id}`, { method: 'DELETE' });
+    await apiFetch<void>(`/api/emission-sources/${id}`, { method: 'DELETE' });
   }
 }
 
@@ -158,7 +158,7 @@ export class EmissionUnitsService {
     search?: string;
   }): Promise<ApiEmissionUnit[]> {
     const res = await apiFetch<ApiEmissionUnit[]>('/api/emission-units', {
-      params: { limit: 100, ...params },
+      params: { limit: 1000, ...params },
     });
     return res ?? [];
   }
@@ -186,12 +186,13 @@ export class EmissionFactorsService {
   static async getAll(filters?: {
     year?: number;
     emissionGroupId?: string;
+    emissionSourceCategoryId?: string;
     emissionSourceId?: string;
     emissionSubsourceId?: string;
     search?: string;
   }): Promise<ApiEmissionFactor[]> {
     const res = await apiFetch<ApiEmissionFactor[]>('/api/emission-factors', {
-      params: { limit: 100, ...filters },
+      params: { limit: 1000, ...filters },
     });
     return res ?? [];
   }

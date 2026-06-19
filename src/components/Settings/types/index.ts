@@ -15,49 +15,59 @@ export const EMISSION_GROUPS: EmissionGroup[] = [
   { id: '6a1c54720e939a6a25327184', label: 'Categoría 6 — Emisiones Indirectas de GEI de Otras Fuentes' },
 ];
 
+// Kept for GasService and GasesList
 export interface Gas {
   id: string;
   chemical_name: string;
   formula: string;
   gwp: number;
-  biogenic_calculation: boolean;
-  non_biogenic_calculation: boolean;
-}
-
-export interface GasFactor {
-  gas_id: string;
-  factor: number;
-  unit: string;
-  uncertainty: number;
-  gwp_applied: number;
-}
-
-export const MEASUREMENT_TYPES = [
-  'Longitud',
-  'Masa',
-  'Volumen',
-  'Energía',
-  'Área',
-  'Potencia',
-  'Tiempo',
-  'Cantidad',
-] as const;
-
-export type MeasurementType = typeof MEASUREMENT_TYPES[number];
-
-export interface EmissionSource {
-  id: string;
-  code?: string;
-  name: string;
-  category: string;
-  measurement_type: string;
-  uncertainty: number;
-  factors: GasFactor[];
+  calculation_type: 'biogenic' | 'non_biogenic' | 'both';
+  is_active: boolean;
+  description?: string;
 }
 
 export interface EmissionSourceCategory {
   id: string;
+  code: string;
   name: string;
   description: string;
   emission_group_id: string;
+  emission_group_name?: string;
+  is_active: boolean;
+  icon?: string;
+}
+
+// Aligned with ApiEmissionSubsource (/api/emission-sources)
+export interface EmissionSource {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  category_id: string;
+  unit_type_id?: string;
+  measurement_type: string;
+  is_active: boolean;
+}
+
+export type FactorMassUnit = 'kg' | 'g' | 'mg';
+
+// Aligned with GasFactor (/api/emission-factors)
+export interface EmissionFactor {
+  id?: string;
+  gas_id: string;
+  gas_formula?: string;
+  gwp: number;
+  factor: number;
+  factor_mass_unit?: FactorMassUnit;
+  uncertainty?: number;
+  emission_unit_id: string;
+  emission_unit_symbol?: string;
+  emission_source_id: string;
+  emission_source_category_id: string;
+}
+
+export interface FactorChanges {
+  toCreate: Omit<EmissionFactor, 'id'>[];
+  toUpdate: (EmissionFactor & { id: string })[];
+  toDelete: string[];
 }

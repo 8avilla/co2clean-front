@@ -43,6 +43,7 @@ const getSectionName = (path: string) => {
   if (path.startsWith('/empresas')) return 'Empresas';
   if (path.startsWith('/usuarios')) return 'Usuarios';
   if (path.startsWith('/roles')) return 'Roles y Permisos';
+  if (path.startsWith('/huella-carbono/analisis-v2')) return 'Análisis V2 — Huella de Carbono';
   if (path.startsWith('/huella-carbono/analisis')) return 'Análisis de Huella de Carbono';
   if (path.startsWith('/huella-carbono')) return 'Emisiones de Huella de Carbono';
   if (path.startsWith('/configuracion/gases')) return 'Gases de Efecto Invernadero';
@@ -126,29 +127,34 @@ export const Header = () => {
     }
   };
 
-  // Close dropdown when clicking outside and load user session
+  // ── Mejora 11+12: carga de usuario separada, sin datos hardcodeados ni console.error ──
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    const loadUser = () => {
       const stored = localStorage.getItem('user');
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          setUser({
-            id: parsed.id || '',
-            name: parsed.name || 'Usuario',
-            email: parsed.email || '',
-            role: parsed.role || 'Usuario',
-            companyName: parsed.company?.name || 'EcoCore',
-            companyId: parsed.company?.id || '',
-            companyLogo: parsed.company?.logoUrl || '',
-            companies: parsed.companies || []
-          });
-        } catch {
-          // Silenced for production
-        }
+      if (!stored) return;
+      try {
+        const parsed = JSON.parse(stored);
+        setUser({
+          id: parsed.id ?? '',
+          name: parsed.name ?? '',
+          email: parsed.email ?? '',
+          role: parsed.role ?? '',
+          companyName: parsed.company?.name ?? '',
+          companyId: parsed.company?.id ?? '',
+          companyLogo: parsed.company?.logoUrl ?? '',
+          companies: parsed.companies ?? [],
+        });
+      } catch {
+        // JSON malformado en localStorage — ignorar
       }
-    }
+    };
+    loadUser();
+    window.addEventListener('user:updated', loadUser);
+    return () => window.removeEventListener('user:updated', loadUser);
+  }, []);
 
+  // Click-outside handler separado
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsProfileOpen(false);

@@ -102,12 +102,12 @@ export const CarbonFootprintForm = () => {
     watchHeadquarterId,
     watchYear,
     watchGroupId,
-    watchSourceId,
+    watchSourceCategoryId,
     watchSubsourceId,
     watchUnitId,
   ] = useWatch({
     control,
-    name: ['headquarterId', 'year', 'emissionGroupId', 'emissionSourceId', 'emissionSubsourceId', 'emissionUnitId'],
+    name: ['headquarterId', 'year', 'emissionGroupId', 'emissionSourceCategoryId', 'emissionSubsourceId', 'emissionUnitId'],
   });
 
   useEffect(() => {
@@ -131,12 +131,12 @@ export const CarbonFootprintForm = () => {
     loadAll();
   }, [activeCompany]);
 
-  const handleSourceChange = async (sourceId: string) => {
+  const handleSourceCategoryChange = async (categoryId: string) => {
     setValue('emissionUnitId', undefined);
     setValue('emissionSubsourceId', '');
-    if (sourceId) {
+    if (categoryId) {
       try {
-        const data = await EmissionSubsourcesService.getAll({ emissionSourceId: sourceId });
+        const data = await EmissionSubsourcesService.getAll({ emissionSourceCategoryId: categoryId });
         setEmissionSubsources(data);
       } catch {
         toast.error('Error al cargar las fuentes de emisión');
@@ -241,7 +241,7 @@ export const CarbonFootprintForm = () => {
         nit: activeCompany.nit,
         headquarterId: data.headquarterId,
         emissionGroupId: data.emissionGroupId!,
-        emissionSourceId: data.emissionSourceId,
+        emissionSourceCategoryId: data.emissionSourceCategoryId,
         emissionSubsourceId: data.emissionSubsourceId,
         emissionUnitId: data.emissionUnitId,
       });
@@ -257,11 +257,11 @@ export const CarbonFootprintForm = () => {
 
   // Derived values
   const selectedGroup = emissionGroups.find(g => g.id === watchGroupId);
-  const selectedSource = emissionSources.find(s => s.id === watchSourceId);
+  const selectedSource = emissionSources.find(s => s.id === watchSourceCategoryId);
   const selectedSubsource = emissionSubsources.find(ss => ss.id === watchSubsourceId);
-  const filteredUnits = selectedSource?.unitTypeId
-    ? emissionUnits.filter(u => u.unitTypeId === selectedSource.unitTypeId)
-    : emissionUnits;
+  const filteredUnits = selectedSubsource?.unitTypeId
+    ? emissionUnits.filter(u => u.unitTypeId === selectedSubsource.unitTypeId)
+    : [];
   const selectedUnit = emissionUnits.find(u => u.id === watchUnitId);
   const unitSymbol = selectedUnit?.symbol ?? '';
 
@@ -269,7 +269,7 @@ export const CarbonFootprintForm = () => {
 
   // Section completion
   const identificationComplete = !!watchHeadquarterId && !!watchYear;
-  const emissionDetailsComplete = !!watchGroupId && !!watchSourceId && !!watchSubsourceId;
+  const emissionDetailsComplete = !!watchGroupId && !!watchSourceCategoryId && !!watchSubsourceId;
   const dataComplete = registrationMode === 'bulk'
     ? !!csvFile
     : !!individualItem.trim() && (
@@ -282,7 +282,7 @@ export const CarbonFootprintForm = () => {
     !watchHeadquarterId && 'Sede',
     !watchYear && 'Año de reporte',
     !watchGroupId && 'Grupo de Emisiones',
-    !watchSourceId && 'Categoría de fuente',
+    !watchSourceCategoryId && 'Categoría de fuente',
     !watchSubsourceId && 'Fuente de emisión',
     registrationMode === 'bulk' && !csvFile && 'Archivo CSV',
     registrationMode === 'individual' && !individualItem.trim() && 'Ítem / Descripción',
@@ -306,7 +306,7 @@ export const CarbonFootprintForm = () => {
     {
       label: 'Categoría',
       display: selectedSource?.name ?? 'Categoría',
-      done: !!watchSourceId,
+      done: !!watchSourceCategoryId,
     },
     {
       label: 'Fuente',
@@ -521,8 +521,8 @@ export const CarbonFootprintForm = () => {
                 Categoría de fuente de emisión <span className="text-red-500">*</span>
               </label>
               <select
-                {...register('emissionSourceId', {
-                  onChange: (e) => handleSourceChange(e.target.value),
+                {...register('emissionSourceCategoryId', {
+                  onChange: (e) => handleSourceCategoryChange(e.target.value),
                 })}
                 disabled={emissionSources.length === 0}
                 className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm disabled:bg-zinc-50 disabled:text-zinc-400"
@@ -532,8 +532,8 @@ export const CarbonFootprintForm = () => {
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
-              {errors.emissionSourceId && (
-                <p className="text-xs text-red-500">{errors.emissionSourceId.message}</p>
+              {errors.emissionSourceCategoryId && (
+                <p className="text-xs text-red-500">{errors.emissionSourceCategoryId.message}</p>
               )}
             </div>
 
@@ -542,12 +542,16 @@ export const CarbonFootprintForm = () => {
                 Fuente de emisión <span className="text-red-500">*</span>
               </label>
               <select
-                {...register('emissionSubsourceId')}
-                disabled={!watchSourceId || emissionSubsources.length === 0}
+                {...register('emissionSubsourceId', {
+                  onChange: () => {
+                    setValue('emissionUnitId', undefined);
+                  },
+                })}
+                disabled={!watchSourceCategoryId || emissionSubsources.length === 0}
                 className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm disabled:bg-zinc-50 disabled:text-zinc-400"
               >
                 <option value="">
-                  {!watchSourceId ? 'Seleccione una categoría primero' : 'Seleccione'}
+                  {!watchSourceCategoryId ? 'Seleccione una categoría primero' : 'Seleccione'}
                 </option>
                 {emissionSubsources.map(ss => (
                   <option key={ss.id} value={ss.id}>{ss.name}</option>
@@ -561,19 +565,19 @@ export const CarbonFootprintForm = () => {
             <div className="space-y-2">
               <label className="text-sm font-semibold text-zinc-700">
                 Unidad de medida
-                {selectedSource?.unitType && (
+                {selectedSubsource?.unitType && (
                   <span className="ml-2 text-[10px] font-normal text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded-full">
-                    {selectedSource.unitType.name}
+                    {selectedSubsource.unitType.name}
                   </span>
                 )}
               </label>
               <select
                 {...register('emissionUnitId')}
-                disabled={filteredUnits.length === 0}
+                disabled={!watchSubsourceId || filteredUnits.length === 0}
                 className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm disabled:bg-zinc-50 disabled:text-zinc-400"
               >
                 <option value="">
-                  {!watchSourceId ? 'Seleccione una categoría primero' : 'Seleccione'}
+                  {!watchSubsourceId ? 'Seleccione una fuente primero' : 'Seleccione'}
                 </option>
                 {filteredUnits.map(u => (
                   <option key={u.id} value={u.id}>

@@ -258,12 +258,29 @@ export const Sidebar = () => {
                       onClick={handleNavClick}
                       className={cn(
                         'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                        pathname.startsWith('/huella-carbono/analisis') && !pathname.includes('/parametros')
+                        pathname.startsWith('/huella-carbono/analisis') &&
+                          !pathname.includes('/parametros') &&
+                          !pathname.startsWith('/huella-carbono/analisis-v2')
                           ? 'text-teal-600 bg-teal-50/50'
                           : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
                       )}
                     >
                       Análisis huella de carbono
+                    </Link>
+                  )}
+
+                  {hasPermission(PermissionCode.VIEW_CARBON_FOOTPRINT_ANALYSIS) && (
+                    <Link
+                      href="/huella-carbono/analisis-v2"
+                      onClick={handleNavClick}
+                      className={cn(
+                        'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                        pathname.startsWith('/huella-carbono/analisis-v2')
+                          ? 'text-teal-600 bg-teal-50/50'
+                          : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
+                      )}
+                    >
+                      Análisis V2
                     </Link>
                   )}
                 </div>
@@ -305,20 +322,33 @@ export const Sidebar = () => {
                 </Link>
 
                 <div className="pl-8 pr-2 space-y-1">
-                  {(hasPermission(PermissionCode.MANAGE_EMISSION_SOURCES) ||
-                    hasPermission(PermissionCode.MANAGE_EMISSION_SOURCE_CATEGORIES)) && (
+                  {hasPermission(PermissionCode.MANAGE_EMISSION_SOURCES) && (
                     <Link
                       href="/configuracion/fuentes-emision"
                       onClick={handleNavClick}
                       className={cn(
                         'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                        pathname.startsWith('/configuracion/fuentes-emision') ||
-                        pathname.startsWith('/configuracion/categorias-fuentes')
+                        pathname === '/configuracion/fuentes-emision'
                           ? 'text-teal-600 bg-teal-50/50'
                           : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
                       )}
                     >
                       Fuentes de Emisión
+                    </Link>
+                  )}
+
+                  {hasPermission(PermissionCode.MANAGE_EMISSION_SOURCE_CATEGORIES) && (
+                    <Link
+                      href="/configuracion/categorias-fuentes"
+                      onClick={handleNavClick}
+                      className={cn(
+                        'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                        pathname === '/configuracion/categorias-fuentes'
+                          ? 'text-teal-600 bg-teal-50/50'
+                          : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
+                      )}
+                    >
+                      Categorías de Fuentes
                     </Link>
                   )}
 

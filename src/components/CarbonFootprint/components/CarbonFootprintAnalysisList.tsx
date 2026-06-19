@@ -72,7 +72,7 @@ export const CarbonFootprintAnalysisList = () => {
     try {
       const [analysisList, records] = await Promise.all([
         CarbonFootprintAnalysisService.getAll({ companyId: activeCompany.id }),
-        CarbonFootprintService.getCarbonFootprints({ companyId: activeCompany.id }),
+        CarbonFootprintService.fetchAll({ companyId: activeCompany.id }),
       ]);
       setAnalyses(analysisList);
       setEmissionYears(new Set(records.map(r => String(r.year))));

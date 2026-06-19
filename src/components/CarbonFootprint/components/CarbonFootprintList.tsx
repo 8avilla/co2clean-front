@@ -95,7 +95,7 @@ export const CarbonFootprintRegistrationList = () => {
     setLoading(true);
     try {
       const [records, hq] = await Promise.all([
-        CarbonFootprintService.getCarbonFootprints({ companyId: activeCompany.id }),
+        CarbonFootprintService.fetchAll({ companyId: activeCompany.id }),
         CompanyService.getHeadquarters(activeCompany.id),
       ]);
       const hqMap = new Map(hq.map(h => [h.id, h.name]));

@@ -61,7 +61,7 @@ export default function CarbonFootprintResultPage() {
     try {
       const analysis = await CarbonFootprintAnalysisService.getById(id as string);
       const [records, headquarters] = await Promise.all([
-        CarbonFootprintService.getCarbonFootprints({ companyId: activeCompany.id, year: analysis.year }),
+        CarbonFootprintService.fetchAll({ companyId: activeCompany.id, year: analysis.year }),
         CompanyService.getHeadquarters(activeCompany.id),
       ]);
 

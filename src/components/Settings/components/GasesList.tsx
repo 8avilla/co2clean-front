@@ -1,15 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Plus, Edit2, Trash2, FlaskConical,
-  ArrowUpDown, ArrowUp, ArrowDown, Search, X,
+  ArrowUpDown, ArrowUp, ArrowDown, Search, X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Gas } from '../types';
-import { GASES_MOCK } from '../data/gases.mock';
-import { EMISSION_SOURCES_MOCK } from '../data/emission-sources.mock';
 import { GasFormModal } from './GasFormModal';
+import { GasService } from '@/shared/services/gas.service';
 
 type CalcFilter = 'all' | 'biogenic' | 'non_biogenic';
 type GwpSort = 'asc' | 'desc' | null;
@@ -20,16 +19,62 @@ const CALC_FILTERS: { key: CalcFilter; label: string }[] = [
   { key: 'non_biogenic', label: 'No biogénico' },
 ];
 
-const getUsageCount = (gasId: string) =>
-  EMISSION_SOURCES_MOCK.filter(s => s.factors.some(f => f.gas_id === gasId)).length;
+interface EmptyStateProps {
+  colspan?: number;
+  hasActiveFilters: boolean;
+  clearFilters: () => void;
+}
+
+const EmptyState = ({ colspan, hasActiveFilters, clearFilters }: EmptyStateProps) => {
+  const content = (
+    <div className="px-6 py-16 text-center">
+      <p className="text-sm font-semibold text-zinc-500">
+        {hasActiveFilters ? 'Sin resultados' : 'Sin gases registrados'}
+      </p>
+      <p className="text-xs text-zinc-400 mt-1">
+        {hasActiveFilters
+          ? 'Prueba con otros filtros o términos de búsqueda'
+          : 'Crea el primer gas de efecto invernadero'}
+      </p>
+      {hasActiveFilters && (
+        <button
+          onClick={clearFilters}
+          className="mt-3 text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors cursor-pointer"
+        >
+          Limpiar filtros
+        </button>
+      )}
+    </div>
+  );
+  return colspan
+    ? <tr><td colSpan={colspan}>{content}</td></tr>
+    : content;
+};
 
 export const GasesList = () => {
-  const [gases, setGases] = useState<Gas[]>(GASES_MOCK);
+  const [gases, setGases] = useState<Gas[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [calcFilter, setCalcFilter] = useState<CalcFilter>('all');
   const [sortByGwp, setSortByGwp] = useState<GwpSort>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingGas, setEditingGas] = useState<Gas | undefined>(undefined);
+
+  const fetchGases = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await GasService.getGases();
+      setGases(data);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al cargar los gases');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchGases();
+  }, [fetchGases]);
 
   const filteredGases = gases.filter(g => {
     const matchSearch =
@@ -38,8 +83,8 @@ export const GasesList = () => {
       g.formula.toLowerCase().includes(searchTerm.toLowerCase());
     const matchCalc =
       calcFilter === 'all' ||
-      (calcFilter === 'biogenic' && g.biogenic_calculation) ||
-      (calcFilter === 'non_biogenic' && g.non_biogenic_calculation);
+      (calcFilter === 'biogenic' && (g.calculation_type === 'biogenic' || g.calculation_type === 'both')) ||
+      (calcFilter === 'non_biogenic' && (g.calculation_type === 'non_biogenic' || g.calculation_type === 'both'));
     return matchSearch && matchCalc;
   });
 
@@ -67,52 +112,33 @@ export const GasesList = () => {
   const handleOpenCreate = () => { setEditingGas(undefined); setModalOpen(true); };
   const handleOpenEdit = (gas: Gas) => { setEditingGas(gas); setModalOpen(true); };
 
-  const handleSave = (data: Omit<Gas, 'id'> & { id?: string }) => {
-    if (data.id) {
-      setGases(prev => prev.map(g => (g.id === data.id ? (data as Gas) : g)));
-      toast.success('Gas actualizado exitosamente');
-    } else {
-      const newGas: Gas = { ...data, id: `gas_${Date.now()}` };
-      setGases(prev => [...prev, newGas]);
-      toast.success('Gas creado exitosamente');
+  const handleSave = async (data: Omit<Gas, 'id'> & { id?: string }) => {
+    try {
+      if (data.id) {
+        const updated = await GasService.updateGas(data.id, data);
+        setGases(prev => prev.map(g => (g.id === data.id ? updated : g)));
+        toast.success('Gas actualizado exitosamente');
+      } else {
+        const created = await GasService.createGas(data);
+        setGases(prev => [...prev, created]);
+        toast.success('Gas creado exitosamente');
+      }
+      setModalOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al guardar el gas');
     }
-    setModalOpen(false);
   };
 
-  const handleDelete = (gas: Gas) => {
-    const usage = getUsageCount(gas.id);
-    const warning = usage > 0
-      ? `\n\nAtención: este gas está referenciado en ${usage} ${usage === 1 ? 'fuente' : 'fuentes'} de emisión.`
-      : '';
-    if (!confirm(`¿Estás seguro de eliminar "${gas.chemical_name}" (${gas.formula})?${warning}`)) return;
-    setGases(prev => prev.filter(g => g.id !== gas.id));
-    toast.success('Gas eliminado exitosamente');
-  };
+  const handleDelete = async (gas: Gas) => {
+    if (!confirm(`¿Estás seguro de eliminar "${gas.chemical_name}" (${gas.formula})?`)) return;
 
-  const EmptyState = ({ colspan }: { colspan?: number }) => {
-    const content = (
-      <div className="px-6 py-16 text-center">
-        <p className="text-sm font-semibold text-zinc-500">
-          {hasActiveFilters ? 'Sin resultados' : 'Sin gases registrados'}
-        </p>
-        <p className="text-xs text-zinc-400 mt-1">
-          {hasActiveFilters
-            ? 'Prueba con otros filtros o términos de búsqueda'
-            : 'Crea el primer gas de efecto invernadero'}
-        </p>
-        {hasActiveFilters && (
-          <button
-            onClick={clearFilters}
-            className="mt-3 text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors"
-          >
-            Limpiar filtros
-          </button>
-        )}
-      </div>
-    );
-    return colspan
-      ? <tr><td colSpan={colspan}>{content}</td></tr>
-      : content;
+    try {
+      await GasService.deleteGas(gas.id);
+      setGases(prev => prev.filter(g => g.id !== gas.id));
+      toast.success('Gas eliminado exitosamente');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar el gas');
+    }
   };
 
   return (
@@ -128,7 +154,7 @@ export const GasesList = () => {
           </div>
           <button
             onClick={handleOpenCreate}
-            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-sm active:scale-95"
+            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-sm active:scale-95 cursor-pointer"
           >
             <Plus size={18} />
             Nuevo Gas
@@ -164,7 +190,7 @@ export const GasesList = () => {
                 <button
                   key={opt.key}
                   onClick={() => setCalcFilter(opt.key)}
-                  className={`px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                  className={`px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                     calcFilter === opt.key
                       ? 'bg-white text-zinc-800 shadow-sm'
                       : 'text-zinc-500 hover:text-zinc-700'
@@ -176,18 +202,31 @@ export const GasesList = () => {
             </div>
 
             {/* Result count */}
-            <span className="text-xs text-zinc-400 flex-shrink-0 tabular-nums">
-              {displayedGases.length} {displayedGases.length === 1 ? 'gas' : 'gases'}
-              {hasActiveFilters && ` de ${gases.length}`}
-            </span>
+            {!loading && (
+              <span className="text-xs text-zinc-400 flex-shrink-0 tabular-nums">
+                {displayedGases.length} {displayedGases.length === 1 ? 'gas' : 'gases'}
+                {hasActiveFilters && ` de ${gases.length}`}
+              </span>
+            )}
           </div>
 
           {/* Mobile card view */}
           <div className="md:hidden divide-y divide-zinc-100">
-            {displayedGases.length > 0 ? (
-              displayedGases.map(gas => {
-                const usage = getUsageCount(gas.id);
-                return (
+            {loading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="p-4 flex items-center justify-between gap-3 animate-pulse">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-zinc-100 flex-shrink-0" />
+                    <div className="space-y-2">
+                      <div className="h-4 bg-zinc-100 rounded w-28" />
+                      <div className="h-3 bg-zinc-100 rounded w-16" />
+                    </div>
+                  </div>
+                  <div className="h-8 w-16 bg-zinc-100 rounded" />
+                </div>
+              ))
+            ) : displayedGases.length > 0 ? (
+              displayedGases.map(gas => (
                   <div key={gas.id} className="p-4 flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3 min-w-0">
                       <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center font-bold flex-shrink-0 border border-violet-100">
@@ -202,15 +241,10 @@ export const GasesList = () => {
                           <span className="text-xs font-semibold text-zinc-600">
                             GWP: <span className="font-bold text-zinc-900">{gas.gwp.toLocaleString()}</span>
                           </span>
-                          {usage > 0 && (
-                            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
-                              {usage} {usage === 1 ? 'fuente' : 'fuentes'}
-                            </span>
-                          )}
-                          {gas.biogenic_calculation && (
+                          {(gas.calculation_type === 'biogenic' || gas.calculation_type === 'both') && (
                             <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Biogénico</span>
                           )}
-                          {gas.non_biogenic_calculation && (
+                          {(gas.calculation_type === 'non_biogenic' || gas.calculation_type === 'both') && (
                             <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-violet-50 text-violet-700 border border-violet-200">No biogénico</span>
                           )}
                         </div>
@@ -219,22 +253,21 @@ export const GasesList = () => {
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button
                         onClick={() => handleOpenEdit(gas)}
-                        className="p-2 text-zinc-400 hover:text-violet-600 rounded-lg transition-colors"
+                        className="p-2 text-zinc-400 hover:text-violet-600 rounded-lg transition-colors cursor-pointer"
                       >
                         <Edit2 size={16} />
                       </button>
                       <button
                         onClick={() => handleDelete(gas)}
-                        className="p-2 text-zinc-400 hover:text-red-600 rounded-lg transition-colors"
+                        className="p-2 text-zinc-400 hover:text-red-600 rounded-lg transition-colors cursor-pointer"
                       >
                         <Trash2 size={16} />
                       </button>
                     </div>
                   </div>
-                );
-              })
+              ))
             ) : (
-              <EmptyState />
+              <EmptyState hasActiveFilters={hasActiveFilters} clearFilters={clearFilters} />
             )}
           </div>
 
@@ -259,10 +292,27 @@ export const GasesList = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {displayedGases.length > 0 ? (
-                  displayedGases.map(gas => {
-                    const usage = getUsageCount(gas.id);
-                    return (
+                {loading ? (
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-zinc-100 flex-shrink-0" />
+                          <div className="h-4 bg-zinc-100 rounded w-36" />
+                        </div>
+                      </td>
+                      <td className="px-6 py-4"><div className="h-6 bg-zinc-100 rounded w-16" /></td>
+                      <td className="px-6 py-4"><div className="h-4 bg-zinc-100 rounded w-10" /></td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1.5">
+                          <div className="h-5 bg-zinc-100 rounded-full w-20" />
+                        </div>
+                      </td>
+                      <td className="px-6 py-4" />
+                    </tr>
+                  ))
+                ) : displayedGases.length > 0 ? (
+                  displayedGases.map(gas => (
                       <tr key={gas.id} className="hover:bg-zinc-50/50 transition-colors group">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
@@ -271,11 +321,6 @@ export const GasesList = () => {
                             </div>
                             <div>
                               <span className="font-bold text-zinc-900 block">{gas.chemical_name}</span>
-                              {usage > 0 && (
-                                <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded-full border border-teal-200 inline-block mt-0.5">
-                                  Usado en {usage} {usage === 1 ? 'fuente' : 'fuentes'}
-                                </span>
-                              )}
                             </div>
                           </div>
                         </td>
@@ -291,18 +336,15 @@ export const GasesList = () => {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            {gas.biogenic_calculation && (
+                            {(gas.calculation_type === 'biogenic' || gas.calculation_type === 'both') && (
                               <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                 Biogénico
                               </span>
                             )}
-                            {gas.non_biogenic_calculation && (
+                            {(gas.calculation_type === 'non_biogenic' || gas.calculation_type === 'both') && (
                               <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-violet-50 text-violet-700 border border-violet-200">
                                 No biogénico
                               </span>
-                            )}
-                            {!gas.biogenic_calculation && !gas.non_biogenic_calculation && (
-                              <span className="text-xs text-zinc-400">—</span>
                             )}
                           </div>
                         </td>
@@ -310,23 +352,22 @@ export const GasesList = () => {
                           <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => handleOpenEdit(gas)}
-                              className="p-2 text-zinc-400 hover:text-violet-600 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-zinc-200"
+                              className="p-2 text-zinc-400 hover:text-violet-600 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-zinc-200 cursor-pointer"
                             >
                               <Edit2 size={16} />
                             </button>
                             <button
                               onClick={() => handleDelete(gas)}
-                              className="p-2 text-zinc-400 hover:text-red-600 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-zinc-200"
+                              className="p-2 text-zinc-400 hover:text-red-600 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-zinc-200 cursor-pointer"
                             >
                               <Trash2 size={16} />
                             </button>
                           </div>
                         </td>
                       </tr>
-                    );
-                  })
+                  ))
                 ) : (
-                  <EmptyState colspan={5} />
+                  <EmptyState colspan={5} hasActiveFilters={hasActiveFilters} clearFilters={clearFilters} />
                 )}
               </tbody>
             </table>
@@ -344,3 +385,4 @@ export const GasesList = () => {
     </>
   );
 };
+

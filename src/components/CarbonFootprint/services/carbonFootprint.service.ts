@@ -14,7 +14,7 @@ export class CarbonFootprintService {
         year: filters.year,
         headquarterId: filters.headquarterId,
         emissionGroupId: filters.emissionGroupId,
-        emissionSourceId: filters.emissionSourceId,
+        emissionSourceCategoryId: filters.emissionSourceCategoryId,
         emissionSubsourceId: filters.emissionSubsourceId,
         startDate: filters.startDate,
         endDate: filters.endDate,
@@ -25,6 +25,30 @@ export class CarbonFootprintService {
     return res ?? [];
   }
 
+  // Fetches every page until the API returns fewer items than the page size
+  static async fetchAll(
+    filters: Omit<CarbonFootprintFilters, 'page' | 'limit'>
+  ): Promise<ApiCarbonFootprint[]> {
+    const PAGE_SIZE = 500;
+    const all: ApiCarbonFootprint[] = [];
+    let page = 1;
+
+    while (true) {
+      const batch = await CarbonFootprintService.getCarbonFootprints({
+        ...filters,
+        page,
+        limit: PAGE_SIZE,
+      });
+
+      all.push(...batch);
+
+      if (batch.length < PAGE_SIZE) break;
+      page++;
+    }
+
+    return all;
+  }
+
   static async uploadCsv(file: File, params: UploadCsvParams): Promise<void> {
     const formData = new FormData();
     formData.append('file', file);
@@ -32,7 +56,7 @@ export class CarbonFootprintService {
     formData.append('nit', params.nit);
     formData.append('headquarterId', params.headquarterId);
     formData.append('emissionGroupId', params.emissionGroupId);
-    formData.append('emissionSourceId', params.emissionSourceId);
+    formData.append('emissionSourceCategoryId', params.emissionSourceCategoryId);
     if (params.emissionSubsourceId) formData.append('emissionSubsourceId', params.emissionSubsourceId);
     if (params.emissionUnitId) formData.append('emissionUnitId', params.emissionUnitId);
 
@@ -63,7 +87,7 @@ export class CarbonFootprintService {
         year: filters.year,
         headquarterId: filters.headquarterId,
         emissionGroupId: filters.emissionGroupId,
-        emissionSourceId: filters.emissionSourceId,
+        emissionSourceCategoryId: filters.emissionSourceCategoryId,
         emissionSubsourceId: filters.emissionSubsourceId,
         startDate: filters.startDate,
         endDate: filters.endDate,
