@@ -267,7 +267,7 @@ export const AnalysisV2ResultsPage = ({ analysisId }: AnalysisV2ResultsPageProps
         />
         <KpiCard
           label="Promedio por Registro"
-          value={averagePerRecord.toLocaleString('es-CO')}
+          value={averagePerRecord}
           unit="tCO₂e / reg"
           sub="Intensidad de emisión promedio"
         />

@@ -6,13 +6,11 @@ import {
   Search,
   Loader2,
   Trash2,
-  Filter,
   Copy,
   Edit2,
   Tag,
   Factory,
   Car,
-  Wind,
   Flame,
   FireExtinguisher,
   FileText,
@@ -30,6 +28,7 @@ import {
   SlidersHorizontal,
   ChevronDown,
   X,
+  Layers,
 } from 'lucide-react';
 
 const ICONS_MAP: Record<string, React.ElementType> = {
@@ -42,7 +41,6 @@ import {
   EmissionSourceCategory,
   EmissionFactor,
   FactorChanges,
-  EMISSION_GROUPS,
 } from '../types';
 import { EmissionSourceCategoryService } from '@/shared/services/emission-source-category.service';
 import {
@@ -51,6 +49,7 @@ import {
 } from '@/shared/services/emission-source.service';
 import { EmissionSourceCategoryFormModal } from './EmissionSourceCategoryFormModal';
 import { EmissionSourceFormModal } from './EmissionSourceFormModal';
+import { CommercialUnitsDrawer } from './CommercialUnitsDrawer';
 
 const getSourceIcon = (categoryName: string) => {
   if (categoryName.includes('Eléctric') || categoryName.includes('Electricidad'))
@@ -91,6 +90,9 @@ export const EmissionSourceMasterDetail = () => {
   const [sourceModalOpen, setSourceModalOpen] = useState(false);
   const [editingSource, setEditingSource] = useState<EmissionSource | undefined>(undefined);
   const [defaultCategoryForSource, setDefaultCategoryForSource] = useState<string | undefined>(undefined);
+
+  // Commercial units drawer
+  const [commercialUnitsSource, setCommercialUnitsSource] = useState<EmissionSource | undefined>(undefined);
 
   // ── Data loading ───────────────────────────────────────────────────────────
 
@@ -497,6 +499,13 @@ export const EmissionSourceMasterDetail = () => {
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1 opacity-0 group-hover/src:opacity-100 transition-opacity">
                               <button
+                                onClick={() => setCommercialUnitsSource(src)}
+                                className="p-1.5 text-zinc-400 hover:text-violet-600 hover:bg-white rounded-lg transition-all border border-transparent hover:border-zinc-200"
+                                title="Gestionar unidades comerciales"
+                              >
+                                <Layers size={13} />
+                              </button>
+                              <button
                                 onClick={() => handleDuplicateSource(src)}
                                 className="p-1.5 text-zinc-400 hover:text-emerald-600 hover:bg-white rounded-lg transition-all border border-transparent hover:border-zinc-200"
                                 title="Duplicar fuente"
@@ -521,7 +530,7 @@ export const EmissionSourceMasterDetail = () => {
                           </td>
                         </tr>
 
-                        {/* ── Expanded factors sub-table ── */}
+                        {/* ── Expanded: emission factors ── */}
                         {isExpanded && (
                           <tr className="bg-zinc-50/50">
                             <td colSpan={5} className="px-6 py-3 pl-16">
@@ -597,6 +606,13 @@ export const EmissionSourceMasterDetail = () => {
           defaultCategory={defaultCategoryForSource}
           onSave={handleSaveSource}
           onClose={() => setSourceModalOpen(false)}
+        />
+      )}
+
+      {commercialUnitsSource && (
+        <CommercialUnitsDrawer
+          source={commercialUnitsSource}
+          onClose={() => setCommercialUnitsSource(undefined)}
         />
       )}
     </>

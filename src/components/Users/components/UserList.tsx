@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Plus, Search, Edit2, Trash2, User,
-  Building2, SlidersHorizontal, X, RefreshCw,
+  SlidersHorizontal, X, RefreshCw,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { ApiUser } from '../types';
@@ -83,6 +83,18 @@ const UserEmptyState = ({
   </div>
 );
 
+function getActiveCompanyId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = localStorage.getItem('user');
+    if (!stored) return null;
+    const parsed = JSON.parse(stored) as { company?: { id: string } | null };
+    return parsed.company?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export const UserList = () => {
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,13 +104,12 @@ export const UserList = () => {
 
   const [showFilters, setShowFilters] = useState(false);
   const [filterRol, setFilterRol] = useState('');
-  const [filterEmpresa, setFilterEmpresa] = useState('');
 
-  // ── Mejora 8: useCallback para exhaustive-deps ──
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await UserService.getUsers();
+      const companyId = getActiveCompanyId() ?? undefined;
+      const data = await UserService.getUsers(undefined, undefined, companyId);
       setUsers(data);
     } catch {
       toast.error('Error al cargar los usuarios');
@@ -123,14 +134,12 @@ export const UserList = () => {
   };
 
   const uniqueRoles = [...new Set(users.map(u => u.role?.name).filter(Boolean))].sort() as string[];
-  const uniqueEmpresas = [...new Set(users.map(u => u.company?.name).filter(Boolean))].sort() as string[];
 
-  const activeFiltersCount = [filterRol, filterEmpresa].filter(Boolean).length;
+  const activeFiltersCount = [filterRol].filter(Boolean).length;
   const hasActiveSearch = !!searchTerm || activeFiltersCount > 0;
 
   const clearFilters = () => {
     setFilterRol('');
-    setFilterEmpresa('');
     setSearchTerm('');
     setPage(1);
   };
@@ -141,8 +150,7 @@ export const UserList = () => {
       u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchRol = !filterRol || u.role?.name === filterRol;
-    const matchEmpresa = !filterEmpresa || u.company?.name === filterEmpresa;
-    return matchSearch && matchRol && matchEmpresa;
+    return matchSearch && matchRol;
   });
 
   // ── Mejora 7: totales para subtitle ──
@@ -235,8 +243,8 @@ export const UserList = () => {
           </div>
 
           {showFilters && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-zinc-100 animate-in fade-in slide-in-from-top-2">
-              <div className="space-y-1">
+            <div className="pt-3 border-t border-zinc-100 animate-in fade-in slide-in-from-top-2">
+              <div className="space-y-1 max-w-xs">
                 <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Rol</label>
                 <select
                   value={filterRol}
@@ -245,17 +253,6 @@ export const UserList = () => {
                 >
                   <option value="">Todos los roles</option>
                   {uniqueRoles.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Empresa</label>
-                <select
-                  value={filterEmpresa}
-                  onChange={e => { setFilterEmpresa(e.target.value); setPage(1); }}
-                  className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none bg-white"
-                >
-                  <option value="">Todas las empresas</option>
-                  {uniqueEmpresas.map(e => <option key={e} value={e}>{e}</option>)}
                 </select>
               </div>
             </div>
@@ -282,13 +279,9 @@ export const UserList = () => {
                   <div className="min-w-0">
                     <p className="font-bold text-zinc-900 text-sm truncate">{user.name}</p>
                     <p className="text-xs text-zinc-500 truncate">{user.email}</p>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <div className="mt-1">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${getRoleBadgeColor(user.role?.name)}`}>
                         {user.role?.name ?? '—'}
-                      </span>
-                      <span className="flex items-center gap-1 text-xs text-zinc-500">
-                        <Building2 size={12} className="text-zinc-400" />
-                        {user.company?.name ?? '—'}
                       </span>
                     </div>
                   </div>
@@ -323,7 +316,6 @@ export const UserList = () => {
             <thead>
               <tr className="bg-zinc-50/50 border-b border-zinc-100">
                 <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Usuario</th>
-                <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Empresa</th>
                 <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Rol</th>
                 <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider text-right">Acciones</th>
               </tr>
@@ -341,7 +333,6 @@ export const UserList = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-5"><div className="h-3 bg-zinc-100 rounded w-24" /></td>
                     <td className="px-6 py-5"><div className="h-5 bg-zinc-100 rounded-full w-16" /></td>
                     <td className="px-6 py-5" />
                   </tr>
@@ -359,12 +350,6 @@ export const UserList = () => {
                           <span className="font-bold text-zinc-900">{user.name}</span>
                           <span className="text-xs text-zinc-500">{user.email}</span>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-sm text-zinc-600">
-                        <Building2 size={15} className="text-zinc-400 flex-shrink-0" />
-                        {user.company?.name ?? '—'}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -399,7 +384,7 @@ export const UserList = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4}>
+                  <td colSpan={3}>
                     <UserEmptyState
                       hasSearch={hasActiveSearch}
                       onClear={clearFilters}

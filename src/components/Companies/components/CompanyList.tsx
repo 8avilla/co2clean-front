@@ -79,7 +79,7 @@ export const CompanyList = () => {
   useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
 
   const handleDelete = async (id: string) => {
-    if (confirm('¿Estás seguro de eliminar esta empresa y todas sus sedes?')) {
+    if (confirm('¿Estás seguro de eliminar esta empresa?')) {
       try {
         await CompanyService.deleteCompany(id);
         toast.success('Empresa eliminada exitosamente');
@@ -96,8 +96,6 @@ export const CompanyList = () => {
     c.nit.includes(searchTerm)
   );
 
-  // ── Mejora 3: Totales para el subtitle dinámico ──
-  const totalSedes = companies.reduce((sum, c) => sum + (c.headquarters?.length ?? 0), 0);
   const hasActiveSearch = !!searchTerm;
   const totalPages = Math.max(1, Math.ceil(filteredCompanies.length / PAGE_SIZE));
   const pagedCompanies = filteredCompanies.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -108,11 +106,10 @@ export const CompanyList = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">Gestión de Empresas</h1>
-          {/* ── Mejora 3: Subtitle dinámico ── */}
           <p className="text-sm text-zinc-500">
             {!loading && companies.length > 0
-              ? `${companies.length} ${companies.length === 1 ? 'empresa' : 'empresas'} · ${totalSedes} ${totalSedes === 1 ? 'sede' : 'sedes'}`
-              : 'Administra las compañías y sedes registradas en el sistema.'}
+              ? `${companies.length} ${companies.length === 1 ? 'empresa registrada' : 'empresas registradas'}`
+              : 'Administra las compañías registradas en el sistema.'}
           </p>
         </div>
         {hasPermission(PermissionCode.CREATE_COMPANIES) && (
@@ -182,20 +179,11 @@ export const CompanyList = () => {
                   <div className="min-w-0">
                     <p className="font-bold text-zinc-900 text-sm truncate">{company.name}</p>
                     <p className="text-xs text-zinc-500">NIT: {company.nit}</p>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      {(company.municipality?.name || company.department?.name) && (
-                        <span className="text-xs text-zinc-500">
-                          {company.municipality?.name ?? ''}{company.department?.name ? `, ${company.department.name}` : ''}
-                        </span>
-                      )}
-                      {/* ── Mejora 5: Badge de sedes como link ── */}
-                      <Link
-                        href={`/empresas/${company.id}`}
-                        className="px-2 py-0.5 rounded-lg bg-zinc-100 text-zinc-700 text-xs font-bold border border-zinc-200 hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200 transition-colors"
-                      >
-                        {(company.headquarters ?? []).length} sedes
-                      </Link>
-                    </div>
+                    {(company.municipality?.name || company.department?.name) && (
+                      <p className="text-xs text-zinc-500 mt-1">
+                        {company.municipality?.name ?? ''}{company.department?.name ? `, ${company.department.name}` : ''}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
@@ -230,7 +218,6 @@ export const CompanyList = () => {
                 <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">NIT</th>
                 <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Ubicación</th>
                 <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Contacto</th>
-                <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Sedes</th>
                 <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider text-right">Acciones</th>
               </tr>
             </thead>
@@ -247,7 +234,6 @@ export const CompanyList = () => {
                     <td className="px-6 py-5"><div className="h-3 bg-zinc-100 rounded w-24" /></td>
                     <td className="px-6 py-5"><div className="h-3 bg-zinc-100 rounded w-28" /></td>
                     <td className="px-6 py-5"><div className="h-3 bg-zinc-100 rounded w-36" /></td>
-                    <td className="px-6 py-5"><div className="h-5 bg-zinc-100 rounded-lg w-12" /></td>
                     <td className="px-6 py-5" />
                   </tr>
                 ))
@@ -272,17 +258,6 @@ export const CompanyList = () => {
                       {company.municipality?.name ?? '—'}{company.department?.name ? `, ${company.department.name}` : ''}
                     </td>
                     <td className="px-6 py-4 text-sm text-zinc-500">{company.email}</td>
-                    <td className="px-6 py-4">
-                      {/* ── Mejora 5: Badge de sedes como link ── */}
-                      <Link
-                        href={`/empresas/${company.id}`}
-                        title="Ver y gestionar sedes"
-                        className="inline-flex items-center px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-700 text-xs font-bold border border-zinc-200 hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200 transition-colors"
-                      >
-                        {(company.headquarters ?? []).length}{' '}
-                        {(company.headquarters ?? []).length === 1 ? 'sede' : 'sedes'}
-                      </Link>
-                    </td>
                     <td className="px-6 py-4 text-right">
                       {/* ── Mejora 4: Acciones hover-only ── */}
                       <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -310,7 +285,7 @@ export const CompanyList = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={5}>
                     <CompanyEmptyState
                       hasSearch={hasActiveSearch}
                       onClear={() => { setSearchTerm(''); setPage(1); }}

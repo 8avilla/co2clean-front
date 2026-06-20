@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Plus, Search, Trash2, Leaf, ChevronLeft, ChevronRight,
-  SlidersHorizontal, X, RefreshCw, Edit2,
+  SlidersHorizontal, X, RefreshCw, Edit2, Check,
 } from 'lucide-react';
 import { ApiCarbonFootprint } from '../types';
 import { CarbonFootprintService } from '../services/carbonFootprint.service';
+import { EmissionSubsourcesService } from '../services/catalogs.service';
 import { CompanyService } from '../../Companies/services/company.service';
 import { toast } from 'sonner';
 import { usePermission } from '@/shared/hooks/usePermission';
@@ -50,24 +51,35 @@ function getActiveCompanyFromSession(): ActiveCompany | null {
 
 function buildDisplayRows(
   records: ApiCarbonFootprint[],
-  hqMap: Map<string, string>
+  hqMap: Map<string, string>,
+  commercialUnitMap: Map<string, string>
 ): DisplayRow[] {
-  return records.map(r => ({
-    id: r.id,
-    sedeNombre: hqMap.get(r.headquarterId) ?? r.headquarterId,
-    sedeId: r.headquarterId,
-    anio: r.year,
-    modoCarga: r.loadMode,
-    item: r.item,
-    cantidad: r.quantity,
-    alcanceNombre: r.emissionGroup?.name ?? '-',
-    alcanceId: r.emissionGroupId,
-    fuenteNombre: r.emissionSource?.name ?? '-',
-    fuenteId: r.emissionSourceId,
-    subfuenteNombre: r.emissionSubsource?.name ?? '-',
-    subfuenteId: r.emissionSubsourceId,
-    unidadNombre: r.emissionUnit?.symbol ?? r.emissionUnit?.name ?? '-',
-  }));
+  return records.map(r => {
+    // Try by emissionUnitId first, fallback to baseUnitSymbol match
+    const idKey = r.emissionSubsourceId && r.emissionUnitId
+      ? `${r.emissionSubsourceId}:id:${r.emissionUnitId}` : null;
+    const symKey = r.emissionSubsourceId && r.emissionUnit?.symbol
+      ? `${r.emissionSubsourceId}:sym:${r.emissionUnit.symbol}` : null;
+    const commercialUnitName =
+      (idKey ? commercialUnitMap.get(idKey) : undefined) ??
+      (symKey ? commercialUnitMap.get(symKey) : undefined);
+    return {
+      id: r.id,
+      sedeNombre: hqMap.get(r.headquarterId) ?? r.headquarterId,
+      sedeId: r.headquarterId,
+      anio: r.year,
+      modoCarga: r.loadMode,
+      item: r.item,
+      cantidad: r.quantity,
+      alcanceNombre: r.emissionGroup?.name ?? '-',
+      alcanceId: r.emissionGroupId,
+      fuenteNombre: r.emissionSourceCategory?.name ?? '-',
+      fuenteId: r.emissionSourceCategoryId,
+      subfuenteNombre: r.emissionSource?.name ?? '-',
+      subfuenteId: r.emissionSubsourceId,
+      unidadNombre: commercialUnitName ?? r.emissionUnit?.symbol ?? r.emissionUnit?.name ?? '-',
+    };
+  });
 }
 
 // Abbreviates "Alcance 1 — Emisiones Directas de GEI" → "Alcance 1"
@@ -80,7 +92,9 @@ export const CarbonFootprintRegistrationList = () => {
   const [activeCompany] = useState(() => getActiveCompanyFromSession());
 
   const [rows, setRows] = useState<DisplayRow[]>([]);
+  const [recordsMap, setRecordsMap] = useState<Map<string, ApiCarbonFootprint>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -99,7 +113,29 @@ export const CarbonFootprintRegistrationList = () => {
         CompanyService.getHeadquarters(activeCompany.id),
       ]);
       const hqMap = new Map(hq.map(h => [h.id, h.name]));
-      setRows(buildDisplayRows(records, hqMap));
+
+      // Fetch commercial units for each distinct subsource to display correct unit names
+      const subsourceIds = [...new Set(records.map(r => r.emissionSubsourceId).filter(Boolean))] as string[];
+      const commercialUnitResults = await Promise.allSettled(
+        subsourceIds.map(id =>
+          EmissionSubsourcesService.getSourceUnits(id).then(units => ({ id, units }))
+        )
+      );
+      // Two keys per commercial unit: by emissionUnitId (if present) and by baseUnitSymbol
+      const commercialUnitMap = new Map<string, string>();
+      for (const result of commercialUnitResults) {
+        if (result.status === 'fulfilled') {
+          for (const unit of result.value.units) {
+            if (unit.emissionUnitId) {
+              commercialUnitMap.set(`${result.value.id}:id:${unit.emissionUnitId}`, unit.displayName);
+            }
+            commercialUnitMap.set(`${result.value.id}:sym:${unit.baseUnitSymbol}`, unit.displayName);
+          }
+        }
+      }
+
+      setRows(buildDisplayRows(records, hqMap, commercialUnitMap));
+      setRecordsMap(new Map(records.map(r => [r.id, r])));
     } catch {
       toast.error('Error al cargar los registros');
     } finally {
@@ -109,10 +145,30 @@ export const CarbonFootprintRegistrationList = () => {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const handleDelete = async (row: DisplayRow) => {
-    if (!confirm('¿Estás seguro de eliminar este registro?')) return;
+  const handleEditClick = (id: string) => {
+    const record = recordsMap.get(id);
+    if (record && typeof window !== 'undefined') {
+      sessionStorage.setItem(`cf-edit-${id}`, JSON.stringify(record));
+    }
+  };
+
+  // Auto-cancel pending delete after 3 seconds of inactivity
+  useEffect(() => {
+    if (!pendingDeleteId) return;
+    const timer = setTimeout(() => setPendingDeleteId(null), 3000);
+    return () => clearTimeout(timer);
+  }, [pendingDeleteId]);
+
+  const requestDelete = (id: string) => setPendingDeleteId(id);
+
+  const cancelDelete = () => setPendingDeleteId(null);
+
+  const confirmDelete = async () => {
+    if (!pendingDeleteId) return;
+    const id = pendingDeleteId;
+    setPendingDeleteId(null);
     try {
-      await CarbonFootprintService.deleteCarbonFootprint(row.id);
+      await CarbonFootprintService.deleteCarbonFootprint(id);
       toast.success('Registro eliminado exitosamente');
       loadData();
     } catch {
@@ -130,7 +186,7 @@ export const CarbonFootprintRegistrationList = () => {
       ? rows.find(r => r.sedeNombre === filterSede)?.sedeId : undefined;
     const emissionGroupId = filterAlcance
       ? rows.find(r => r.alcanceNombre === filterAlcance)?.alcanceId : undefined;
-    const emissionSourceId = filterFuente
+    const emissionSourceCategoryId = filterFuente
       ? rows.find(r => r.fuenteNombre === filterFuente)?.fuenteId : undefined;
 
     const filterDescriptions: string[] = [];
@@ -160,7 +216,7 @@ export const CarbonFootprintRegistrationList = () => {
         year: filterAnio ? parseInt(filterAnio, 10) : undefined,
         headquarterId,
         emissionGroupId,
-        emissionSourceId,
+        emissionSourceCategoryId,
       });
       toast.success('Registros filtrados eliminados exitosamente');
       clearFilters();
@@ -431,15 +487,40 @@ export const CarbonFootprintRegistrationList = () => {
                     {hasPermission(PermissionCode.CREATE_CARBON_FOOTPRINT) && (
                       <Link
                         href={`/huella-carbono/${row.id}/editar`}
+                        onClick={() => handleEditClick(row.id)}
                         className="p-1.5 text-zinc-400 hover:text-emerald-600 rounded-lg transition-colors"
                       >
                         <Edit2 size={15} />
                       </Link>
                     )}
                     {hasPermission(PermissionCode.DELETE_CARBON_FOOTPRINT) && (
-                      <button onClick={() => handleDelete(row)} className="p-1.5 text-zinc-400 hover:text-red-600 rounded-lg transition-colors">
-                        <Trash2 size={15} />
-                      </button>
+                      pendingDeleteId === row.id ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-[11px] text-red-500 font-semibold whitespace-nowrap">¿Eliminar?</span>
+                          <button
+                            onClick={confirmDelete}
+                            className="p-1.5 text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+                            title="Confirmar eliminación"
+                          >
+                            <Check size={13} />
+                          </button>
+                          <button
+                            onClick={cancelDelete}
+                            className="p-1.5 text-zinc-500 hover:text-zinc-700 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-colors"
+                            title="Cancelar"
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => requestDelete(row.id)}
+                          className="p-1.5 text-zinc-400 hover:text-red-600 rounded-lg transition-colors"
+                          title="Eliminar registro"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )
                     )}
                   </div>
                 </div>
@@ -518,6 +599,7 @@ export const CarbonFootprintRegistrationList = () => {
                         {hasPermission(PermissionCode.CREATE_CARBON_FOOTPRINT) && (
                           <Link
                             href={`/huella-carbono/${row.id}/editar`}
+                            onClick={() => handleEditClick(row.id)}
                             className="p-2 text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                             title="Editar registro"
                           >
@@ -525,13 +607,33 @@ export const CarbonFootprintRegistrationList = () => {
                           </Link>
                         )}
                         {hasPermission(PermissionCode.DELETE_CARBON_FOOTPRINT) && (
-                          <button
-                            onClick={() => handleDelete(row)}
-                            className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Eliminar registro"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          pendingDeleteId === row.id ? (
+                            <div className="flex items-center gap-1">
+                              <span className="text-[11px] text-red-500 font-semibold whitespace-nowrap">¿Eliminar?</span>
+                              <button
+                                onClick={confirmDelete}
+                                className="p-1.5 text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+                                title="Confirmar eliminación"
+                              >
+                                <Check size={14} />
+                              </button>
+                              <button
+                                onClick={cancelDelete}
+                                className="p-1.5 text-zinc-500 hover:text-zinc-700 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-colors"
+                                title="Cancelar"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => requestDelete(row.id)}
+                              className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Eliminar registro"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )
                         )}
                       </div>
                     </td>

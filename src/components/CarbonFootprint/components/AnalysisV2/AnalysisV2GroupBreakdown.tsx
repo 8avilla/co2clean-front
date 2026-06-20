@@ -1,8 +1,8 @@
 'use client';
 
-import { Fragment, useMemo, useState } from 'react';
-import { FlaskConical, Search, TriangleAlert, X } from 'lucide-react';
-import { GroupedResult } from './hooks/useAnalysisResults';
+import { Fragment, useMemo, useState, useCallback } from 'react';
+import { FlaskConical, Search, TriangleAlert, X, Zap, ChevronDown, ChevronRight, ChevronsUpDown } from 'lucide-react';
+import { GroupedResult, SourceResult } from './hooks/useAnalysisResults';
 import { CHART_COLORS } from './AnalysisV2EmissionsChart';
 
 interface AnalysisV2GroupBreakdownProps {
@@ -13,8 +13,7 @@ interface AnalysisV2GroupBreakdownProps {
 
 function fmt(value: number): string {
   if (value === 0) return '0';
-  if (value >= 1) return Math.round(value).toLocaleString('es-CO');
-  return value.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return value.toLocaleString('es-CO', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 }
 
 function fmtFactor(value: number): string {
@@ -48,6 +47,13 @@ function CoverageBadge({ covered, total }: { covered: number; total: number }) {
   );
 }
 
+function toggle(set: Set<string>, id: string): Set<string> {
+  const next = new Set(set);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  return next;
+}
+
 export const AnalysisV2GroupBreakdown = ({
   groups,
   totalTco2e,
@@ -58,27 +64,71 @@ export const AnalysisV2GroupBreakdown = ({
   const [gasFilter, setGasFilter] = useState<string>('');
   const [sourceFilter, setSourceFilter] = useState<string>('');
 
-  const uniqueGases = useMemo(() => {
-    const gases = new Set<string>();
+  // Collapsed sets — empty means all expanded (default)
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [collapsedSources, setCollapsedSources] = useState<Set<string>>(new Set());
+
+  const toggleGroup = useCallback((id: string) => setCollapsedGroups(prev => toggle(prev, id)), []);
+  const toggleCategory = useCallback((key: string) => setCollapsedCategories(prev => toggle(prev, key)), []);
+  const toggleSource = useCallback((key: string) => setCollapsedSources(prev => toggle(prev, key)), []);
+
+  // Collect all composite keys from current filtered groups for expand/collapse all
+  const allKeys = useMemo(() => {
+    const groupIds: string[] = [];
+    const catKeys: string[] = [];
+    const srcKeys: string[] = [];
     groups.forEach(g => {
+      groupIds.push(g.groupId);
       g.categories.forEach(c => {
-        c.factors.forEach(f => gases.add(f.gasName));
+        const catKey = `${g.groupId}:${c.categoryId}`;
+        catKeys.push(catKey);
+        c.sources.forEach(s => {
+          srcKeys.push(`${catKey}:${s.sourceId}`);
+        });
       });
     });
+    return { groupIds, catKeys, srcKeys };
+  }, [groups]);
+
+  const isAllCollapsed =
+    allKeys.groupIds.every(id => collapsedGroups.has(id));
+
+  const collapseAll = () => {
+    setCollapsedGroups(new Set(allKeys.groupIds));
+    setCollapsedCategories(new Set(allKeys.catKeys));
+    setCollapsedSources(new Set(allKeys.srcKeys));
+  };
+
+  const expandAll = () => {
+    setCollapsedGroups(new Set());
+    setCollapsedCategories(new Set());
+    setCollapsedSources(new Set());
+  };
+
+  const uniqueGases = useMemo(() => {
+    const gases = new Set<string>();
+    groups.forEach(g =>
+      g.categories.forEach(c =>
+        c.sources.forEach(s =>
+          s.factors.forEach(f => gases.add(f.gasName))
+        )
+      )
+    );
     return Array.from(gases).sort();
   }, [groups]);
 
   const uniqueSources = useMemo(() => {
-    const sourcesMap = new Map<string, string>();
+    const map = new Map<string, string>();
     groups.forEach(g => {
       if (groupFilter && g.groupId !== groupFilter) return;
-      g.categories.forEach(c => {
-        sourcesMap.set(c.categoryId, c.categoryName);
-      });
+      g.categories.forEach(c =>
+        c.sources.forEach(s => map.set(s.sourceId, s.sourceName))
+      );
     });
-    return Array.from(sourcesMap.entries())
+    return Array.from(map.entries())
       .map(([value, label]) => ({ label, value }))
-      .sort((a, b) => a.label.localeCompare(b.label));
+      .sort((a, b) => a.label.localeCompare(b.label, 'es'));
   }, [groups, groupFilter]);
 
   const filteredGroups = useMemo<GroupedResult[]>(() => {
@@ -87,34 +137,43 @@ export const AnalysisV2GroupBreakdown = ({
     return groups
       .filter(g => !groupFilter || g.groupId === groupFilter)
       .map(g => {
-        const filteredCats = g.categories.map(cat => {
-          // Source filter
-          if (sourceFilter && cat.categoryId !== sourceFilter) return null;
+        const filteredCats = g.categories
+          .map(cat => {
+            const catMatchesQ = q ? cat.categoryName.toLowerCase().includes(q) : true;
 
-          const catMatchesQ = q ? cat.categoryName.toLowerCase().includes(q) : true;
+            const filteredSources = cat.sources
+              .map((src): SourceResult | null => {
+                if (sourceFilter && src.sourceId !== sourceFilter) return null;
+                const srcMatchesQ = q ? src.sourceName.toLowerCase().includes(q) : true;
 
-          const finalFactors = cat.factors.filter(f => {
-            if (gasFilter && f.gasName !== gasFilter) return false;
+                const finalFactors = src.factors.filter(f => {
+                  if (gasFilter && f.gasName !== gasFilter) return false;
+                  if (q && !catMatchesQ && !srcMatchesQ) {
+                    return (
+                      f.gasName.toLowerCase().includes(q) ||
+                      (f.formula ? f.formula.toLowerCase().includes(q) : false)
+                    );
+                  }
+                  return true;
+                });
 
-            if (q && !catMatchesQ) {
-               const fMatch = f.gasName.toLowerCase().includes(q) ||
-                              (f.formula && f.formula.toLowerCase().includes(q));
-               if (!fMatch) return false;
-            }
-            return true;
-          });
+                if (finalFactors.length === 0) return null;
+                const newSrcTco2e = finalFactors.reduce((s, f) => s + f.tco2e, 0);
+                return { ...src, factors: finalFactors, tco2e: newSrcTco2e };
+              })
+              .filter((s): s is SourceResult => s !== null);
 
-          if (finalFactors.length === 0) return null;
-          
-          const newCatTco2e = finalFactors.reduce((sum, f) => sum + f.tco2e, 0);
-          return { ...cat, factors: finalFactors, tco2e: newCatTco2e };
-        }).filter(Boolean) as (typeof g.categories)[0][];
+            if (filteredSources.length === 0) return null;
+            const newCatTco2e = filteredSources.reduce((s, src) => s + src.tco2e, 0);
+            return { ...cat, sources: filteredSources, tco2e: newCatTco2e };
+          })
+          .filter((c): c is (typeof g.categories)[0] => c !== null);
 
         if (filteredCats.length === 0) return null;
-
-        const newGroupTco2e = filteredCats.reduce((sum, c) => sum + c.tco2e, 0);
+        const newGroupTco2e = filteredCats.reduce((s, c) => s + c.tco2e, 0);
         return { ...g, categories: filteredCats, tco2e: newGroupTco2e };
-      }).filter(Boolean) as GroupedResult[];
+      })
+      .filter((g): g is GroupedResult => g !== null);
   }, [groups, groupFilter, search, gasFilter, sourceFilter]);
 
   const filteredTotalTco2e = useMemo(
@@ -155,29 +214,36 @@ export const AnalysisV2GroupBreakdown = ({
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h3 className="text-sm font-bold text-zinc-900">Desglose por Factor de Emisión</h3>
-            <p className="text-xs text-zinc-400 mt-0.5">Grupo · Categoría · Gas</p>
+            <p className="text-xs text-zinc-400 mt-0.5">Grupo · Categoría · Fuente · Gas</p>
           </div>
-
-          {isFiltered && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={clearFilters}
-              className="text-xs text-violet-600 hover:text-violet-800 font-semibold flex items-center gap-1"
+              onClick={isAllCollapsed ? expandAll : collapseAll}
+              className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-800 font-semibold px-2.5 py-1.5 rounded-lg border border-zinc-200 hover:border-zinc-300 transition-colors"
             >
-              <X size={12} />
-              Limpiar filtros
+              <ChevronsUpDown size={12} />
+              {isAllCollapsed ? 'Expandir todo' : 'Colapsar todo'}
             </button>
-          )}
+            {isFiltered && (
+              <button
+                onClick={clearFilters}
+                className="text-xs text-violet-600 hover:text-violet-800 font-semibold flex items-center gap-1"
+              >
+                <X size={12} />
+                Limpiar filtros
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-3">
-          {/* Search */}
           <div className="relative flex-1 min-w-[180px] max-w-xs">
             <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
             <input
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar categoría o gas..."
+              placeholder="Buscar categoría, fuente o gas..."
               className="w-full pl-8 pr-7 py-1.5 text-xs rounded-xl border border-zinc-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all bg-white"
             />
             {search && (
@@ -190,7 +256,6 @@ export const AnalysisV2GroupBreakdown = ({
             )}
           </div>
 
-          {/* Specific Source Filter */}
           <select
             value={sourceFilter}
             onChange={e => setSourceFilter(e.target.value)}
@@ -199,12 +264,11 @@ export const AnalysisV2GroupBreakdown = ({
             <option value="">Todas las fuentes</option>
             {uniqueSources.map(s => (
               <option key={s.value} value={s.value} title={s.label}>
-                {s.label.length > 35 ? s.label.substring(0, 32) + '...' : s.label}
+                {s.label.length > 35 ? `${s.label.substring(0, 32)}...` : s.label}
               </option>
             ))}
           </select>
 
-          {/* Gas Filter */}
           <select
             value={gasFilter}
             onChange={e => setGasFilter(e.target.value)}
@@ -238,23 +302,34 @@ export const AnalysisV2GroupBreakdown = ({
             </thead>
 
             <tbody>
-              {filteredGroups.map((group, groupIdx) => {
+              {filteredGroups.map(group => {
                 const originalIdx = groups.findIndex(g => g.groupId === group.groupId);
                 const color = CHART_COLORS[originalIdx % CHART_COLORS.length];
+                const groupCollapsed = collapsedGroups.has(group.groupId);
 
                 return (
                   <Fragment key={group.groupId}>
                     {/* ── Nivel 1: Grupo ── */}
                     <tr
-                      className="border-b border-zinc-600"
+                      className="border-b border-zinc-600 cursor-pointer select-none"
                       style={{ backgroundColor: '#3f3f46', borderLeft: `4px solid ${color}` }}
+                      onClick={() => toggleGroup(group.groupId)}
                     >
                       <td className="px-5 py-2.5">
                         <div className="flex items-center gap-2">
+                          {groupCollapsed
+                            ? <ChevronRight size={14} className="text-zinc-400 shrink-0" />
+                            : <ChevronDown size={14} className="text-zinc-400 shrink-0" />
+                          }
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
                           <span className="font-bold text-white text-[13px]">{group.groupName}</span>
                           {group.groupCode && (
                             <span className="font-mono text-zinc-400 text-[10px]">{group.groupCode}</span>
+                          )}
+                          {groupCollapsed && (
+                            <span className="text-zinc-500 text-[10px] ml-1">
+                              ({group.categories.length} {group.categories.length === 1 ? 'categoría' : 'categorías'})
+                            </span>
                           )}
                         </div>
                       </td>
@@ -270,28 +345,39 @@ export const AnalysisV2GroupBreakdown = ({
                       </td>
                     </tr>
 
-                    {group.categories.map((cat, catIdx) => {
-                      const isLastCategory = catIdx === group.categories.length - 1;
+                    {!groupCollapsed && group.categories.map(cat => {
+                      const catKey = `${group.groupId}:${cat.categoryId}`;
+                      const catCollapsed = collapsedCategories.has(catKey);
 
                       return (
-                        <Fragment key={cat.categoryId}>
+                        <Fragment key={catKey}>
                           {/* ── Nivel 2: Categoría ── */}
                           <tr
-                            className="border-b border-zinc-100 bg-zinc-50"
+                            className="border-b border-zinc-200 bg-zinc-50 cursor-pointer select-none hover:bg-zinc-100/70 transition-colors"
                             style={{ borderLeft: `4px solid ${color}` }}
+                            onClick={() => toggleCategory(catKey)}
                           >
                             <td className="px-5 py-2 pl-9">
                               <div className="flex items-center gap-2 flex-wrap">
+                                {catCollapsed
+                                  ? <ChevronRight size={12} className="text-zinc-400 shrink-0" />
+                                  : <ChevronDown size={12} className="text-zinc-400 shrink-0" />
+                                }
                                 <span className="font-semibold text-zinc-700">{cat.categoryName}</span>
                                 <CoverageBadge covered={cat.coveredRecordCount} total={cat.recordCount} />
                                 {cat.coveredRecordCount < cat.recordCount && onNavigateToUncovered && (
                                   <button
                                     type="button"
-                                    onClick={onNavigateToUncovered}
+                                    onClick={e => { e.stopPropagation(); onNavigateToUncovered(); }}
                                     className="text-[10px] text-amber-600 hover:text-amber-800 underline underline-offset-1"
                                   >
                                     ver →
                                   </button>
+                                )}
+                                {catCollapsed && (
+                                  <span className="text-zinc-400 text-[10px]">
+                                    ({cat.sources.length} {cat.sources.length === 1 ? 'fuente' : 'fuentes'})
+                                  </span>
                                 )}
                               </div>
                             </td>
@@ -309,53 +395,99 @@ export const AnalysisV2GroupBreakdown = ({
                             </td>
                           </tr>
 
-                          {/* ── Nivel 3: Factores ── */}
-                          {cat.factors.map((f, fIdx) => {
-                            const isLastFactor = fIdx === cat.factors.length - 1;
+                          {!catCollapsed && cat.sources.map((src, srcIdx) => {
+                            const srcKey = `${catKey}:${src.sourceId}`;
+                            const srcCollapsed = collapsedSources.has(srcKey);
+                            const isLastSource = srcIdx === cat.sources.length - 1;
+
                             return (
-                              <tr
-                                key={f.factorId}
-                                className={`bg-white hover:bg-zinc-50/60 transition-colors ${
-                                  isLastFactor && isLastCategory
-                                    ? 'border-b-2 border-zinc-200'
-                                    : 'border-b border-zinc-50'
-                                }`}
-                                style={{ borderLeft: `4px solid ${color}` }}
-                              >
-                                <td className="px-5 py-2 pl-14">
-                                  <div className="flex items-center gap-1.5">
-                                    <FlaskConical size={11} className="text-violet-400 shrink-0" />
-                                    <span className="text-zinc-600">{f.gasName}</span>
-                                    {f.formula && (
-                                      <span className="font-mono text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded text-[10px] leading-none">
-                                        {f.formula}
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="px-3 py-2 text-right text-zinc-400 tabular-nums">
-                                  {f.recordCount}
-                                </td>
-                                <td className="px-3 py-2 text-right font-mono text-zinc-500 hidden sm:table-cell tabular-nums">
-                                  {f.gwp}
-                                </td>
-                                <td className="px-3 py-2 text-right font-mono hidden md:table-cell">
-                                  <span className="text-zinc-600">{fmtFactor(f.factorValue)}</span>
-                                  {f.unitSymbol && (
-                                    <span className="text-zinc-300">/{f.unitSymbol}</span>
-                                  )}
-                                </td>
-                                <td className="px-3 py-2 text-right font-mono hidden lg:table-cell">
-                                  <span className="text-zinc-500 tabular-nums">{fmt(f.gasTonnes)}</span>
-                                  <span className="text-zinc-300 ml-0.5">t</span>
-                                </td>
-                                <td className="px-3 py-2 text-right">
-                                  <span className="font-semibold text-violet-700 tabular-nums">{fmt(f.tco2e)}</span>
-                                </td>
-                                <td className="px-4 py-2 text-right">
-                                  <span className="text-zinc-400 tabular-nums">{f.percentage.toFixed(1)}%</span>
-                                </td>
-                              </tr>
+                              <Fragment key={srcKey}>
+                                {/* ── Nivel 3: Fuente de emisión ── */}
+                                <tr
+                                  className="border-b border-zinc-100 bg-white cursor-pointer select-none hover:bg-zinc-50/80 transition-colors"
+                                  style={{ borderLeft: `4px solid ${color}` }}
+                                  onClick={() => toggleSource(srcKey)}
+                                >
+                                  <td className="px-5 py-1.5 pl-14">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      {srcCollapsed
+                                        ? <ChevronRight size={11} className="text-zinc-300 shrink-0" />
+                                        : <ChevronDown size={11} className="text-zinc-300 shrink-0" />
+                                      }
+                                      <Zap size={11} className="text-zinc-400 shrink-0" />
+                                      <span className="font-medium text-zinc-600">{src.sourceName}</span>
+                                      <CoverageBadge covered={src.coveredRecordCount} total={src.recordCount} />
+                                      {srcCollapsed && (
+                                        <span className="text-zinc-400 text-[10px]">
+                                          ({src.factors.length} {src.factors.length === 1 ? 'gas' : 'gases'})
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-1.5 text-right text-zinc-400 tabular-nums">
+                                    {src.recordCount}
+                                  </td>
+                                  <td className="px-3 py-1.5 hidden sm:table-cell" />
+                                  <td className="px-3 py-1.5 hidden md:table-cell" />
+                                  <td className="px-3 py-1.5 hidden lg:table-cell" />
+                                  <td className="px-3 py-1.5 text-right">
+                                    <span className="font-medium text-zinc-700 tabular-nums">{fmt(src.tco2e)}</span>
+                                  </td>
+                                  <td className="px-4 py-1.5 text-right">
+                                    <span className="text-zinc-400 tabular-nums">{src.percentage.toFixed(1)}%</span>
+                                  </td>
+                                </tr>
+
+                                {/* ── Nivel 4: Gas / Factor ── */}
+                                {!srcCollapsed && src.factors.map((f, fIdx) => {
+                                  const isLastFactor = fIdx === src.factors.length - 1;
+                                  return (
+                                    <tr
+                                      key={`${srcKey}:${f.factorId}`}
+                                      className={`bg-white/70 hover:bg-zinc-50/60 transition-colors ${
+                                        isLastFactor && isLastSource
+                                          ? 'border-b-2 border-zinc-200'
+                                          : 'border-b border-zinc-50'
+                                      }`}
+                                      style={{ borderLeft: `4px solid ${color}` }}
+                                    >
+                                      <td className="px-5 py-1.5 pl-20">
+                                        <div className="flex items-center gap-1.5">
+                                          <FlaskConical size={10} className="text-violet-400 shrink-0" />
+                                          <span className="text-zinc-500">{f.gasName}</span>
+                                          {f.formula && (
+                                            <span className="font-mono text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded text-[10px] leading-none">
+                                              {f.formula}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className="px-3 py-1.5 text-right text-zinc-400 tabular-nums">
+                                        {f.recordCount}
+                                      </td>
+                                      <td className="px-3 py-1.5 text-right font-mono text-zinc-500 hidden sm:table-cell tabular-nums">
+                                        {f.gwp}
+                                      </td>
+                                      <td className="px-3 py-1.5 text-right font-mono hidden md:table-cell">
+                                        <span className="text-zinc-600">{fmtFactor(f.factorValue)}</span>
+                                        {f.unitSymbol && (
+                                          <span className="text-zinc-300">/{f.unitSymbol}</span>
+                                        )}
+                                      </td>
+                                      <td className="px-3 py-1.5 text-right font-mono hidden lg:table-cell">
+                                        <span className="text-zinc-500 tabular-nums">{fmt(f.gasTonnes)}</span>
+                                        <span className="text-zinc-300 ml-0.5">t</span>
+                                      </td>
+                                      <td className="px-3 py-1.5 text-right">
+                                        <span className="font-semibold text-violet-700 tabular-nums">{fmt(f.tco2e)}</span>
+                                      </td>
+                                      <td className="px-4 py-1.5 text-right">
+                                        <span className="text-zinc-400 tabular-nums">{f.percentage.toFixed(1)}%</span>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </Fragment>
                             );
                           })}
                         </Fragment>
@@ -366,7 +498,6 @@ export const AnalysisV2GroupBreakdown = ({
               })}
             </tbody>
 
-            {/* Footer */}
             <tfoot>
               <tr className="bg-zinc-50 border-t-2 border-zinc-200">
                 <td className="px-5 py-3">

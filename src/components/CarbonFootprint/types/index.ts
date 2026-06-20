@@ -31,6 +31,15 @@ export interface ApiEmissionSource {
   isActive?: boolean;
 }
 
+export interface ApiCommercialUnit {
+  id: string;
+  displaySymbol: string;
+  displayName: string;
+  conversionFactor: number;
+  baseUnitSymbol: string;
+  emissionUnitId?: string;
+}
+
 // Represents /api/emission-sources
 export interface ApiEmissionSubsource {
   id: string;
@@ -41,6 +50,7 @@ export interface ApiEmissionSubsource {
   unitTypeId?: string | null;
   unitType?: ApiUnitType | null;
   isActive?: boolean;
+  allowedUnits?: ApiCommercialUnit[];
 }
 
 export interface ApiEmissionUnit {
@@ -64,6 +74,8 @@ export const FACTOR_MASS_UNIT_TO_KG: Record<FactorMassUnit, number> = {
 // Aligned with GasFactor (/api/emission-factors)
 export interface ApiEmissionFactor {
   id: string;
+  name?: string;
+  description?: string;
   gasId: string;
   gas?: { id: string; chemicalName: string; formula: string; gwp: number };
   factor: number;
@@ -72,10 +84,13 @@ export interface ApiEmissionFactor {
   emissionUnit?: ApiEmissionUnit;
   uncertainty?: number;
   gwp: number;
+  emissionGroupId?: string;
+  emissionGroup?: ApiEmissionGroup;
   emissionSourceId: string;
   emissionSourceCategoryId: string;
   emissionSourceCategory?: ApiEmissionSource;
   emissionSource?: ApiEmissionSubsource;
+  emissionSubsource?: ApiEmissionSubsource;
 }
 
 // ── Catalog payload types ────────────────────────────────────────────────────
@@ -181,6 +196,7 @@ export interface UploadCsvParams {
   emissionSourceCategoryId: string;
   emissionSubsourceId?: string;
   emissionUnitId?: string;
+  emissionUnitSymbol?: string;
 }
 
 export interface UpdateCarbonFootprintPayload {

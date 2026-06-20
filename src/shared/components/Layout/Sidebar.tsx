@@ -352,6 +352,21 @@ export const Sidebar = () => {
                     </Link>
                   )}
 
+                  {hasPermission(PermissionCode.MANAGE_EMISSION_SOURCES) && (
+                    <Link
+                      href="/configuracion/unidades-medida"
+                      onClick={handleNavClick}
+                      className={cn(
+                        'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                        pathname === '/configuracion/unidades-medida'
+                          ? 'text-teal-600 bg-teal-50/50'
+                          : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
+                      )}
+                    >
+                      Unidades de Medida
+                    </Link>
+                  )}
+
                   {hasPermission(PermissionCode.MANAGE_GASES) && (
                     <Link
                       href="/configuracion/gases"

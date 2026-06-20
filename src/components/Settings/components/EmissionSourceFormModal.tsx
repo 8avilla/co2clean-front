@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, type SyntheticEvent } from 'react';
+import { useState, useEffect, useRef, useMemo, type SyntheticEvent } from 'react';
 import { X, Plus, Trash2, Info, SlidersHorizontal, Check, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -81,6 +81,23 @@ export const EmissionSourceFormModal = ({
   const [gases, setGases] = useState<Gas[]>([]);
   const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(true);
   const [isLoadingFactors, setIsLoadingFactors] = useState(false);
+
+  // Group emission units by type for the factor row unit selector
+  const groupedEmissionUnits = useMemo(() => {
+    const typeMap = new Map(unitTypes.map(t => [t.id, t.name]));
+    const groups = new Map<string, { key: string; label: string; units: ApiEmissionUnit[] }>();
+    for (const u of emissionUnits) {
+      const key = u.unitTypeId ?? '__other__';
+      const label = u.unitTypeId ? (typeMap.get(u.unitTypeId) ?? 'Otras') : 'Otras';
+      if (!groups.has(key)) groups.set(key, { key, label, units: [] });
+      groups.get(key)!.units.push(u);
+    }
+    return Array.from(groups.values()).sort((a, b) => {
+      if (a.key === '__other__') return 1;
+      if (b.key === '__other__') return -1;
+      return a.label.localeCompare(b.label, 'es');
+    });
+  }, [unitTypes, emissionUnits]);
 
   // Express category creation
   const [showNewCat, setShowNewCat] = useState(false);
@@ -803,10 +820,14 @@ export const EmissionSourceFormModal = ({
                                     className={`${factorCellClass(f._key, 'emission_unit_id')} bg-white font-mono`}
                                   >
                                     <option value="">Sin unidad</option>
-                                    {emissionUnits.map(u => (
-                                      <option key={u.id} value={u.id}>
-                                        {u.symbol} — {u.name}
-                                      </option>
+                                    {groupedEmissionUnits.map(group => (
+                                      <optgroup key={group.key} label={group.label}>
+                                        {group.units.map(u => (
+                                          <option key={u.id} value={u.id}>
+                                            {u.symbol} — {u.name}
+                                          </option>
+                                        ))}
+                                      </optgroup>
                                     ))}
                                   </select>
                                   {rowErr?.emission_unit_id && (

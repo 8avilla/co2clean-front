@@ -10,6 +10,7 @@ interface AnalysisV2TreemapProps {
 }
 
 interface TileData {
+  id: string;
   name: string;
   tco2e: number;
   percentage: number;
@@ -25,7 +26,7 @@ const SVG_H = 280;
 const GAP = 2;
 
 function buildTiles(
-  items: { name: string; tco2e: number; percentage: number; color: string }[]
+  items: { id: string; name: string; tco2e: number; percentage: number; color: string }[]
 ): TileData[] {
   if (items.length === 0) return [];
   const total = items.reduce((s, i) => s + i.tco2e, 0);
@@ -79,6 +80,7 @@ export const AnalysisV2Treemap = ({ groups, totalTco2e }: AnalysisV2TreemapProps
     () =>
       groups.flatMap((g, gIdx) =>
         g.categories.map(cat => ({
+          id: `${g.groupId}:${cat.categoryId}`,
           name: cat.categoryName,
           tco2e: cat.tco2e,
           percentage: cat.percentage,
@@ -98,7 +100,7 @@ export const AnalysisV2Treemap = ({ groups, totalTco2e }: AnalysisV2TreemapProps
     );
   }
 
-  const hoveredTile = hovered ? tiles.find(t => t.name === hovered) : null;
+  const hoveredTile = hovered ? tiles.find(t => t.id === hovered) : null;
 
   return (
     <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden flex flex-col">
@@ -115,12 +117,12 @@ export const AnalysisV2Treemap = ({ groups, totalTco2e }: AnalysisV2TreemapProps
           aria-label="Treemap de emisiones por categoría"
         >
           {tiles.map(tile => {
-            const isHov = hovered === tile.name;
+            const isHov = hovered === tile.id;
             const canShowText = tile.w > 32 && tile.h > 22;
             const canShowPct = tile.h > 38;
 
             return (
-              <g key={tile.name}>
+              <g key={tile.id}>
                 <rect
                   x={tile.x + GAP / 2}
                   y={tile.y + GAP / 2}
@@ -130,7 +132,7 @@ export const AnalysisV2Treemap = ({ groups, totalTco2e }: AnalysisV2TreemapProps
                   opacity={hovered === null ? 0.82 : isHov ? 1 : 0.3}
                   rx={4}
                   className="cursor-pointer transition-opacity duration-150"
-                  onMouseEnter={() => setHovered(tile.name)}
+                  onMouseEnter={() => setHovered(tile.id)}
                   onMouseLeave={() => setHovered(null)}
                 />
                 {canShowText && (

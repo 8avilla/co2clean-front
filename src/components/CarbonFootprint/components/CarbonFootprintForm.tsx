@@ -7,6 +7,7 @@ import {
   Building2, Upload, FileText, CheckCircle2, X, Flame, RefreshCw,
   Download, ArrowLeft, Save, FilePlus, FileSpreadsheet, ChevronDown, ChevronUp,
 } from 'lucide-react';
+import { UnitPicker } from './UnitPicker';
 import { toast } from 'sonner';
 import {
   CarbonFootprintFormData,
@@ -17,6 +18,7 @@ import {
   ApiEmissionSource,
   ApiEmissionSubsource,
   ApiEmissionUnit,
+  ApiCommercialUnit,
 } from '../types';
 import { CarbonFootprintService } from '../services/carbonFootprint.service';
 import {
@@ -70,6 +72,7 @@ export const CarbonFootprintForm = () => {
   const [emissionSources, setEmissionSources] = useState<ApiEmissionSource[]>([]);
   const [emissionSubsources, setEmissionSubsources] = useState<ApiEmissionSubsource[]>([]);
   const [emissionUnits, setEmissionUnits] = useState<ApiEmissionUnit[]>([]);
+  const [commercialUnits, setCommercialUnits] = useState<ApiCommercialUnit[]>([]);
 
   const [registrationMode, setRegistrationMode] = useState<'bulk' | 'individual'>('bulk');
   const [loadMode, setLoadMode] = useState<LoadMode | ''>('Annual');
@@ -134,6 +137,7 @@ export const CarbonFootprintForm = () => {
   const handleSourceCategoryChange = async (categoryId: string) => {
     setValue('emissionUnitId', undefined);
     setValue('emissionSubsourceId', '');
+    setCommercialUnits([]);
     if (categoryId) {
       try {
         const data = await EmissionSubsourcesService.getAll({ emissionSourceCategoryId: categoryId });
@@ -143,6 +147,18 @@ export const CarbonFootprintForm = () => {
       }
     } else {
       setEmissionSubsources([]);
+    }
+  };
+
+  const handleSubsourceChange = async (subsourceId: string) => {
+    setValue('emissionUnitId', undefined);
+    setCommercialUnits([]);
+    if (!subsourceId) return;
+    try {
+      const units = await EmissionSubsourcesService.getSourceUnits(subsourceId);
+      setCommercialUnits(units);
+    } catch {
+      // Fallback silencioso: se usan las unidades del catálogo por unitTypeId
     }
   };
 
@@ -234,6 +250,8 @@ export const CarbonFootprintForm = () => {
 
     const fileToUpload = registrationMode === 'bulk' ? csvFile! : generateIndividualFile();
 
+    const isCommercialUnit = !!selectedCommercialUnit;
+
     setIsSubmitting(true);
     try {
       await CarbonFootprintService.uploadCsv(fileToUpload, {
@@ -243,7 +261,7 @@ export const CarbonFootprintForm = () => {
         emissionGroupId: data.emissionGroupId!,
         emissionSourceCategoryId: data.emissionSourceCategoryId,
         emissionSubsourceId: data.emissionSubsourceId,
-        emissionUnitId: data.emissionUnitId,
+        emissionUnitId: data.emissionUnitId || undefined,
       });
       toast.success('Emisiones registradas exitosamente');
       router.push('/huella-carbono');
@@ -259,11 +277,17 @@ export const CarbonFootprintForm = () => {
   const selectedGroup = emissionGroups.find(g => g.id === watchGroupId);
   const selectedSource = emissionSources.find(s => s.id === watchSourceCategoryId);
   const selectedSubsource = emissionSubsources.find(ss => ss.id === watchSubsourceId);
-  const filteredUnits = selectedSubsource?.unitTypeId
+  const filteredCatalogUnits = selectedSubsource?.unitTypeId
     ? emissionUnits.filter(u => u.unitTypeId === selectedSubsource.unitTypeId)
     : [];
-  const selectedUnit = emissionUnits.find(u => u.id === watchUnitId);
-  const unitSymbol = selectedUnit?.symbol ?? '';
+  const selectedCommercialUnit = commercialUnits.find(
+    u => (u.emissionUnitId ?? u.displaySymbol) === watchUnitId
+  );
+  const selectedCatalogUnit = !selectedCommercialUnit
+    ? emissionUnits.find(u => u.id === watchUnitId)
+    : null;
+  const unitSymbol = selectedCommercialUnit?.displaySymbol ?? selectedCatalogUnit?.symbol ?? '';
+  const hasAnyUnits = commercialUnits.length > 0 || filteredCatalogUnits.length > 0;
 
   const monthlyTotal = monthlyValues.reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
 
@@ -315,7 +339,11 @@ export const CarbonFootprintForm = () => {
     },
     {
       label: 'Unidad',
-      display: selectedUnit ? `${selectedUnit.name} (${selectedUnit.symbol})` : 'Unidad',
+      display: selectedCommercialUnit
+        ? selectedCommercialUnit.displayName
+        : selectedCatalogUnit
+          ? `${selectedCatalogUnit.name} (${selectedCatalogUnit.symbol})`
+          : 'Unidad',
       done: !!watchUnitId,
     },
   ];
@@ -543,9 +571,7 @@ export const CarbonFootprintForm = () => {
               </label>
               <select
                 {...register('emissionSubsourceId', {
-                  onChange: () => {
-                    setValue('emissionUnitId', undefined);
-                  },
+                  onChange: (e) => handleSubsourceChange(e.target.value),
                 })}
                 disabled={!watchSourceCategoryId || emissionSubsources.length === 0}
                 className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm disabled:bg-zinc-50 disabled:text-zinc-400"
@@ -571,20 +597,15 @@ export const CarbonFootprintForm = () => {
                   </span>
                 )}
               </label>
-              <select
-                {...register('emissionUnitId')}
-                disabled={!watchSubsourceId || filteredUnits.length === 0}
-                className="w-full px-3 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 outline-none text-sm disabled:bg-zinc-50 disabled:text-zinc-400"
-              >
-                <option value="">
-                  {!watchSubsourceId ? 'Seleccione una fuente primero' : 'Seleccione'}
-                </option>
-                {filteredUnits.map(u => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} ({u.symbol})
-                  </option>
-                ))}
-              </select>
+              <UnitPicker
+                value={watchUnitId ?? ''}
+                onChange={val => setValue('emissionUnitId', val || undefined)}
+                commercialUnits={commercialUnits}
+                catalogUnits={filteredCatalogUnits}
+                disabled={!watchSubsourceId}
+                disabledPlaceholder="Seleccione una fuente primero"
+                accentColor="teal"
+              />
             </div>
           </div>
         </div>

@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CarbonFootprintAnalysisService } from '../../../services/carbonFootprintAnalysis.service';
 import { CarbonFootprintService } from '../../../services/carbonFootprint.service';
-import { EmissionFactorsService } from '../../../services/catalogs.service';
-import { ApiCarbonFootprint, ApiCarbonFootprintAnalysis, ApiEmissionFactor, FACTOR_MASS_UNIT_TO_KG, FactorMassUnit } from '../../../types';
+import { EmissionFactorsService, EmissionSubsourcesService } from '../../../services/catalogs.service';
+import { ApiCarbonFootprint, ApiCarbonFootprintAnalysis, ApiCommercialUnit, ApiEmissionFactor, FACTOR_MASS_UNIT_TO_KG, FactorMassUnit } from '../../../types';
 
 export interface FactorResult {
   factorId: string;
@@ -19,6 +19,16 @@ export interface FactorResult {
   percentage: number;
 }
 
+export interface SourceResult {
+  sourceId: string;
+  sourceName: string;
+  tco2e: number;
+  percentage: number;
+  recordCount: number;
+  coveredRecordCount: number;
+  factors: FactorResult[];
+}
+
 export interface CategoryResult {
   categoryId: string;
   categoryName: string;
@@ -26,7 +36,7 @@ export interface CategoryResult {
   percentage: number;
   recordCount: number;
   coveredRecordCount: number;
-  factors: FactorResult[];
+  sources: SourceResult[];
 }
 
 export interface GroupedResult {
@@ -73,12 +83,20 @@ interface FactorAccum {
   count: number;
 }
 
-interface CategoryAccum {
+interface SourceAccum {
   name: string;
   tco2e: number;
   count: number;
   coveredCount: number;
   factors: Map<string, FactorAccum>;
+}
+
+interface CategoryAccum {
+  name: string;
+  tco2e: number;
+  count: number;
+  coveredCount: number;
+  sources: Map<string, SourceAccum>;
 }
 
 interface GroupAccum {
@@ -129,6 +147,27 @@ export function useAnalysisResults(analysisId: string) {
       const categoryIds = [
         ...new Set(records.filter(r => r.emissionSourceCategoryId).map(r => r.emissionSourceCategoryId!)),
       ];
+
+      // Fetch commercial units for each subsource so we can resolve commercial unit
+      // quantities to base units before matching emission factors.
+      // Key: displaySymbol (lowercase) because backend returns emissionUnitId as null.
+      const commercialUnitSettled = await Promise.allSettled(
+        subsourceIds.map(id =>
+          EmissionSubsourcesService.getSourceUnits(id).then(units => ({ id, units }))
+        )
+      );
+      // subsourceId → Map<displaySymbol_lowercase, ApiCommercialUnit>
+      const commercialUnitsBySubsource = new Map<string, Map<string, ApiCommercialUnit>>();
+      for (const result of commercialUnitSettled) {
+        if (result.status === 'fulfilled') {
+          const { id, units } = result.value;
+          const unitMap = new Map<string, ApiCommercialUnit>();
+          for (const unit of units) {
+            unitMap.set(unit.displaySymbol.toLowerCase(), unit);
+          }
+          commercialUnitsBySubsource.set(id, unitMap);
+        }
+      }
 
       // Fetch factors by subsource (primary) and by category (supplement)
       // This handles data inconsistencies where factors may be stored under a different
@@ -187,6 +226,7 @@ export function useAnalysisResults(analysisId: string) {
         }
       }
 
+
       const groupMap = new Map<string, GroupAccum>();
       const recordIdsWithFactors = new Set<string>();
 
@@ -202,13 +242,34 @@ export function useAnalysisResults(analysisId: string) {
           ? (factorsBySubsource.get(record.emissionSubsourceId) ?? [])
           : [];
 
+        // Resolve commercial unit by matching the record's emissionUnit.symbol against
+        // displaySymbol (lowercase). Backend returns emissionUnitId as null in commercial
+        // unit objects, so symbol-based lookup is the only reliable approach.
+        const subsourceUnitMap = record.emissionSubsourceId
+          ? (commercialUnitsBySubsource.get(record.emissionSubsourceId) ?? new Map<string, ApiCommercialUnit>())
+          : new Map<string, ApiCommercialUnit>();
+        const recordSymbolKey = record.emissionUnit?.symbol?.toLowerCase() ?? '';
+        const commercialUnit = recordSymbolKey
+          ? (subsourceUnitMap.get(recordSymbolKey) ?? null)
+          : null;
+
+        // Effective quantity: converted to base unit if using a commercial unit
+        const effectiveQuantity = commercialUnit
+          ? record.quantity * commercialUnit.conversionFactor
+          : record.quantity;
+
+        // Effective unit symbol for factor matching: base unit symbol from commercial unit,
+        // or the record's own emissionUnit symbol
+        const effectiveUnitSymbol = commercialUnit
+          ? commercialUnit.baseUnitSymbol
+          : record.emissionUnit?.symbol;
+
         // Match factors by unit symbol (robust against different DB IDs for the same unit)
         // Falls back to ID comparison, then to all factors if no unit info available
-        const recordUnitSymbol = record.emissionUnit?.symbol;
-        const factors = recordUnitSymbol
+        const factors = effectiveUnitSymbol
           ? allSubsourceFactors.filter(f =>
               f.emissionUnit?.symbol
-                ? f.emissionUnit.symbol === recordUnitSymbol
+                ? f.emissionUnit.symbol === effectiveUnitSymbol
                 : f.emissionUnitId === record.emissionUnitId
             )
           : allSubsourceFactors;
@@ -218,8 +279,8 @@ export function useAnalysisResults(analysisId: string) {
         for (const f of factors) {
           // Convert factor to kg using factorMassUnit before computing tCO₂e
           const factorInKg = f.factor * (FACTOR_MASS_UNIT_TO_KG[(f.factorMassUnit ?? 'kg') as FactorMassUnit] ?? 1);
-          // tco2e = quantity × factorInKg × gwp / 1000 (kg → tonnes)
-          recordTco2e += (record.quantity * factorInKg * f.gwp) / 1000;
+          // tco2e = effectiveQuantity (in base unit) × factorInKg × gwp / 1000 (kg → tonnes)
+          recordTco2e += (effectiveQuantity * factorInKg * f.gwp) / 1000;
         }
         if (factors.length > 0) {
           recordsWithFactors++;
@@ -252,7 +313,7 @@ export function useAnalysisResults(analysisId: string) {
             tco2e: 0,
             count: 0,
             coveredCount: 0,
-            factors: new Map(),
+            sources: new Map(),
           });
         }
         const cat = group.categories.get(categoryId)!;
@@ -260,14 +321,31 @@ export function useAnalysisResults(analysisId: string) {
         cat.count++;
         if (factors.length > 0) cat.coveredCount++;
 
-        // Accumulate per-factor within this category
+        // Accumulate per emission source (subsource) within this category
+        const sourceId = record.emissionSubsourceId ?? 'sin-fuente';
+        const sourceName = record.emissionSource?.name ?? 'Sin fuente';
+        if (!cat.sources.has(sourceId)) {
+          cat.sources.set(sourceId, {
+            name: sourceName,
+            tco2e: 0,
+            count: 0,
+            coveredCount: 0,
+            factors: new Map(),
+          });
+        }
+        const src = cat.sources.get(sourceId)!;
+        src.tco2e += recordTco2e;
+        src.count++;
+        if (factors.length > 0) src.coveredCount++;
+
+        // Accumulate per-factor within this source
         for (const f of factors) {
           const factorInKg = f.factor * (FACTOR_MASS_UNIT_TO_KG[(f.factorMassUnit ?? 'kg') as FactorMassUnit] ?? 1);
-          const rawGas = (record.quantity * factorInKg) / 1000;
+          const rawGas = (effectiveQuantity * factorInKg) / 1000;
           const contribution = rawGas * f.gwp;
-          if (!cat.factors.has(f.id)) {
+          if (!src.factors.has(f.id)) {
             const displayFactor = f.factor * (FACTOR_MASS_UNIT_TO_KG[(f.factorMassUnit ?? 'kg') as FactorMassUnit] ?? 1);
-            cat.factors.set(f.id, {
+            src.factors.set(f.id, {
               gasName: f.gas?.chemicalName ?? 'Gas',
               formula: f.gas?.formula ?? '',
               gwp: f.gwp,
@@ -278,7 +356,7 @@ export function useAnalysisResults(analysisId: string) {
               count: 0,
             });
           }
-          const fa = cat.factors.get(f.id)!;
+          const fa = src.factors.get(f.id)!;
           fa.gasTonnes += rawGas;
           fa.tco2e += contribution;
           fa.count++;
@@ -301,18 +379,28 @@ export function useAnalysisResults(analysisId: string) {
               percentage: totalTco2e > 0 ? (c.tco2e / totalTco2e) * 100 : 0,
               recordCount: c.count,
               coveredRecordCount: c.coveredCount,
-              factors: Array.from(c.factors.entries())
-                .map(([factorId, fa]) => ({
-                  factorId,
-                  gasName: fa.gasName,
-                  formula: fa.formula,
-                  gwp: fa.gwp,
-                  factorValue: fa.factorValue,
-                  unitSymbol: fa.unitSymbol,
-                  gasTonnes: fa.gasTonnes,
-                  tco2e: fa.tco2e,
-                  recordCount: fa.count,
-                  percentage: c.tco2e > 0 ? (fa.tco2e / c.tco2e) * 100 : 0,
+              sources: Array.from(c.sources.entries())
+                .map(([sourceId, s]) => ({
+                  sourceId,
+                  sourceName: s.name,
+                  tco2e: s.tco2e,
+                  percentage: totalTco2e > 0 ? (s.tco2e / totalTco2e) * 100 : 0,
+                  recordCount: s.count,
+                  coveredRecordCount: s.coveredCount,
+                  factors: Array.from(s.factors.entries())
+                    .map(([factorId, fa]) => ({
+                      factorId,
+                      gasName: fa.gasName,
+                      formula: fa.formula,
+                      gwp: fa.gwp,
+                      factorValue: fa.factorValue,
+                      unitSymbol: fa.unitSymbol,
+                      gasTonnes: fa.gasTonnes,
+                      tco2e: fa.tco2e,
+                      recordCount: fa.count,
+                      percentage: s.tco2e > 0 ? (fa.tco2e / s.tco2e) * 100 : 0,
+                    }))
+                    .sort((a, b) => b.tco2e - a.tco2e),
                 }))
                 .sort((a, b) => b.tco2e - a.tco2e),
             }))

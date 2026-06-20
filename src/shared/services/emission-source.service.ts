@@ -1,5 +1,6 @@
 import { apiFetch } from '@/shared/lib/api-client';
 import { EmissionSource, EmissionFactor } from '@/components/Settings/types';
+import { ApiCommercialUnit } from '@/components/CarbonFootprint/types';
 
 // ── API shapes (backend camelCase) ──────────────────────────────────────────
 
@@ -171,6 +172,36 @@ export class EmissionSourceService {
   static async deleteSource(id: string): Promise<void> {
     await apiFetch<void>(`/api/emission-sources/${id}`, { method: 'DELETE' });
   }
+
+  static async getCommercialUnits(sourceId: string): Promise<ApiCommercialUnit[]> {
+    const res = await apiFetch<ApiCommercialUnit[]>(`/api/emission-sources/${sourceId}/units`);
+    return res ?? [];
+  }
+
+  static async createCommercialUnit(
+    sourceId: string,
+    data: Omit<ApiCommercialUnit, 'id'>
+  ): Promise<ApiCommercialUnit> {
+    return apiFetch<ApiCommercialUnit>(`/api/emission-sources/${sourceId}/units`, {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  static async updateCommercialUnit(
+    sourceId: string,
+    unitId: string,
+    data: Partial<Omit<ApiCommercialUnit, 'id'>>
+  ): Promise<ApiCommercialUnit> {
+    return apiFetch<ApiCommercialUnit>(`/api/emission-sources/${sourceId}/units/${unitId}`, {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  static async deleteCommercialUnit(sourceId: string, unitId: string): Promise<void> {
+    await apiFetch<void>(`/api/emission-sources/${sourceId}/units/${unitId}`, { method: 'DELETE' });
+  }
 }
 
 // ── EmissionFactorService ────────────────────────────────────────────────────
@@ -213,12 +244,37 @@ export class EmissionFactorService {
 
 // ── EmissionUnitService ──────────────────────────────────────────────────────
 
+export interface GetEmissionUnitsParams {
+  unitTypeId?: string;
+  search?: string;
+  excludeCommercial?: boolean;
+  page?: number;
+  limit?: number;
+}
+
 export class EmissionUnitService {
-  static async getUnits(params?: { unitTypeId?: string }): Promise<ApiEmissionUnit[]> {
+  static async getUnits(params?: GetEmissionUnitsParams): Promise<ApiEmissionUnit[]> {
     const res = await apiFetch<ApiEmissionUnit[]>('/api/emission-units', {
-      params: { limit: 1000, ...params },
+      params: {
+        limit: params?.limit ?? 1000,
+        ...(params?.unitTypeId ? { unitTypeId: params.unitTypeId } : {}),
+        ...(params?.search ? { search: params.search } : {}),
+        ...(params?.page ? { page: params.page } : {}),
+      },
     });
     return res ?? [];
+  }
+
+  static async create(data: { name: string; symbol: string; unitTypeId?: string; description?: string }): Promise<ApiEmissionUnit> {
+    return apiFetch<ApiEmissionUnit>('/api/emission-units', { method: 'POST', body: data });
+  }
+
+  static async update(id: string, data: Partial<{ name: string; symbol: string; unitTypeId: string; description: string }>): Promise<ApiEmissionUnit> {
+    return apiFetch<ApiEmissionUnit>(`/api/emission-units/${id}`, { method: 'PUT', body: data });
+  }
+
+  static async delete(id: string): Promise<void> {
+    await apiFetch<void>(`/api/emission-units/${id}`, { method: 'DELETE' });
   }
 }
 

@@ -51,7 +51,7 @@ export const CarbonFootprintParameters = () => {
     const parsed = parseFloat(val);
     setFactors(prev => prev.map(f => {
       if (f.id === id) {
-        return { ...f, value: isNaN(parsed) ? 0 : parsed, isDirty: true };
+        return { ...f, factor: isNaN(parsed) ? 0 : parsed, isDirty: true };
       }
       return f;
     }));
@@ -66,7 +66,7 @@ export const CarbonFootprintParameters = () => {
     setIsSaving(true);
     try {
       await Promise.all(
-        dirtyFactors.map(f => EmissionFactorsService.update(f.id, { value: f.value }))
+        dirtyFactors.map(f => EmissionFactorsService.update(f.id, { factor: f.factor }))
       );
       setFactors(prev => prev.map(f => ({ ...f, isDirty: false })));
       toast.success(`Factores del año ${selectedYear} guardados correctamente`);
@@ -80,8 +80,8 @@ export const CarbonFootprintParameters = () => {
   const uniqueAlcances = Array.from(
     new Map(
       factors
-        .filter(f => f.emissionGroup)
-        .map(f => [f.emissionGroupId, f.emissionGroup!])
+        .filter(f => f.emissionGroup && f.emissionGroupId)
+        .map(f => [f.emissionGroupId!, f.emissionGroup!])
     ).entries()
   ).map(([id, grupo]) => ({ id, nombre: grupo.name }));
 
@@ -265,7 +265,7 @@ export const CarbonFootprintParameters = () => {
                         <input
                           type="number"
                           step="any"
-                          value={factor.value}
+                          value={factor.factor}
                           onChange={(e) => handleValueChange(factor.id, e.target.value)}
                           className="w-28 px-3 py-1.5 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-right font-bold text-sm text-zinc-800"
                         />

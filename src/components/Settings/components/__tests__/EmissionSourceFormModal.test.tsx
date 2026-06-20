@@ -43,8 +43,8 @@ const defaultUnits = [
 const defaultUnitTypes = [{ id: 'ut-1', name: 'Masa', code: 'MASS' }];
 
 const defaultGases = [
-  { id: 'gas-1', chemical_name: 'Dióxido de Carbono', formula: 'CO₂', gwp: 1,  calculation_type: 'non_biogenic', is_active: true },
-  { id: 'gas-2', chemical_name: 'Metano',             formula: 'CH₄', gwp: 28, calculation_type: 'non_biogenic', is_active: true },
+  { id: 'gas-1', chemical_name: 'Dióxido de Carbono', formula: 'CO₂', gwp: 1,  calculation_type: 'non_biogenic' as const, is_active: true },
+  { id: 'gas-2', chemical_name: 'Metano',             formula: 'CH₄', gwp: 28, calculation_type: 'non_biogenic' as const, is_active: true },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -11,7 +11,6 @@ import {
   Menu,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
 import { AuthService } from '@/components/Auth/services/auth.service';
 import Cookies from 'js-cookie';
 import { toast } from 'sonner';
@@ -38,24 +37,8 @@ const AVATAR_COLORS = [
 const getAvatarColor = (name: string) =>
   AVATAR_COLORS[(name.charCodeAt(0) || 0) % AVATAR_COLORS.length];
 
-const getSectionName = (path: string) => {
-  if (path === '/') return 'Inicio';
-  if (path.startsWith('/empresas')) return 'Empresas';
-  if (path.startsWith('/usuarios')) return 'Usuarios';
-  if (path.startsWith('/roles')) return 'Roles y Permisos';
-  if (path.startsWith('/huella-carbono/analisis-v2')) return 'Análisis V2 — Huella de Carbono';
-  if (path.startsWith('/huella-carbono/analisis')) return 'Análisis de Huella de Carbono';
-  if (path.startsWith('/huella-carbono')) return 'Emisiones de Huella de Carbono';
-  if (path.startsWith('/configuracion/gases')) return 'Gases de Efecto Invernadero';
-  if (path.startsWith('/configuracion/fuentes-emision')) return 'Fuentes de Emisión';
-  if (path.startsWith('/configuracion/categorias-fuentes')) return 'Categorías de Fuentes';
-  if (path.startsWith('/perfil')) return 'Mi Perfil';
-  return '';
-};
 
 export const Header = () => {
-  const router = useRouter();
-  const pathname = usePathname();
   const { toggleSidebar } = useSidebar();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isCompanyOpen, setIsCompanyOpen] = useState(false);
@@ -105,20 +88,8 @@ export const Header = () => {
       localStorage.setItem('user', JSON.stringify(response.user));
       window.dispatchEvent(new Event('user:updated'));
 
-      // Update dropdown state immediately from the API response
-      setUser({
-        id: response.user.id ?? '',
-        name: response.user.name ?? 'Usuario',
-        email: response.user.email ?? '',
-        role: response.user.role ?? 'Usuario',
-        companyName: response.user.company?.name ?? '',
-        companyId: response.user.company?.id ?? '',
-        companyLogo: response.user.company?.logoUrl ?? '',
-        companies: response.user.companies ?? user.companies,
-      });
-
-      // Refresh server components so page data reflects the new company
-      router.refresh();
+      // Full reload so all client components re-fetch with the new company context
+      window.location.reload();
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Error al cambiar de empresa');
     } finally {
@@ -169,22 +140,17 @@ export const Header = () => {
 
   return (
     <header className="h-16 bg-white border-b border-zinc-200 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30">
-      {/* Left side — hamburger on mobile, section name on desktop */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={toggleSidebar}
-          className="md:hidden p-2 rounded-lg text-zinc-500 hover:bg-zinc-100 transition-colors"
-          aria-label="Abrir menú"
-        >
-          <Menu size={20} />
-        </button>
-        <h2 className="hidden md:block text-sm font-semibold text-zinc-600">
-          {getSectionName(pathname)}
-        </h2>
-      </div>
+      {/* Left side — hamburger on mobile */}
+      <button
+        onClick={toggleSidebar}
+        className="md:hidden p-2 rounded-lg text-zinc-500 hover:bg-zinc-100 transition-colors"
+        aria-label="Abrir menú"
+      >
+        <Menu size={20} />
+      </button>
 
       {/* Right side (Actions & Profile) */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-6 ml-auto">
         {/* Company Switcher Dropdown (visible only if user has > 1 associated company) */}
         {user.companies.length > 1 ? (
           <div className="relative" ref={companyDropdownRef}>

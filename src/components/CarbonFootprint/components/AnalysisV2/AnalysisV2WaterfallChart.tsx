@@ -10,6 +10,7 @@ interface AnalysisV2WaterfallChartProps {
 }
 
 interface WaterfallBar {
+  id: string;
   name: string;
   shortName: string;
   value: number;
@@ -39,6 +40,7 @@ export const AnalysisV2WaterfallChart = ({ groups, totalTco2e }: AnalysisV2Water
     const cats = groups
       .flatMap((g, gIdx) =>
         g.categories.map(cat => ({
+          id: `${g.groupId}:${cat.categoryId}`,
           name: cat.categoryName,
           shortName: truncate(cat.categoryName, 11),
           value: cat.tco2e,
@@ -55,6 +57,7 @@ export const AnalysisV2WaterfallChart = ({ groups, totalTco2e }: AnalysisV2Water
     });
 
     result.push({
+      id: 'total',
       name: 'Total',
       shortName: 'Total',
       value: totalTco2e,
@@ -79,7 +82,7 @@ export const AnalysisV2WaterfallChart = ({ groups, totalTco2e }: AnalysisV2Water
   const tickCount = 4;
   const ticks = Array.from({ length: tickCount + 1 }, (_, i) => (maxVal * i) / tickCount);
 
-  const hoveredBar = hovered ? bars.find(b => b.name === hovered) : null;
+  const hoveredBar = hovered ? bars.find(b => b.id === hovered) : null;
 
   return (
     <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
@@ -124,7 +127,7 @@ export const AnalysisV2WaterfallChart = ({ groups, totalTco2e }: AnalysisV2Water
               const bx = i * barSpacing + (barSpacing - barWidth) / 2;
               const barH = (bar.value / maxVal) * chartH;
               const barY = bar.isTotal ? scaleY(bar.value) : scaleY(bar.cumBase + bar.value);
-              const isHov = hovered === bar.name;
+              const isHov = hovered === bar.id;
 
               // Connector to next bar
               const nextBar = bars[i + 1];
@@ -134,7 +137,7 @@ export const AnalysisV2WaterfallChart = ({ groups, totalTco2e }: AnalysisV2Water
               const connY = bar.isTotal ? scaleY(bar.value) : scaleY(bar.cumBase + bar.value);
 
               return (
-                <g key={bar.name}>
+                <g key={bar.id}>
                   {/* Dashed connector */}
                   {!bar.isTotal && nextBar && !nextBar.isTotal && (
                     <line
@@ -158,7 +161,7 @@ export const AnalysisV2WaterfallChart = ({ groups, totalTco2e }: AnalysisV2Water
                     opacity={hovered === null ? (bar.isTotal ? 1 : 0.78) : isHov ? 1 : 0.25}
                     rx={3}
                     className="cursor-pointer transition-opacity duration-150"
-                    onMouseEnter={() => setHovered(bar.name)}
+                    onMouseEnter={() => setHovered(bar.id)}
                     onMouseLeave={() => setHovered(null)}
                   />
 

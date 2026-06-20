@@ -9,6 +9,7 @@ interface AnalysisV2BarChartProps {
 }
 
 interface CategoryBar {
+  id: string;
   categoryId: string;
   categoryName: string;
   tco2e: number;
@@ -19,8 +20,7 @@ interface CategoryBar {
 
 function fmt(v: number): string {
   if (v === 0) return '0';
-  if (v >= 1) return Math.round(v).toLocaleString('es-CO');
-  return v.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return v.toLocaleString('es-CO', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 }
 
 export const AnalysisV2BarChart = ({ groups, totalTco2e }: AnalysisV2BarChartProps) => {
@@ -36,6 +36,7 @@ export const AnalysisV2BarChart = ({ groups, totalTco2e }: AnalysisV2BarChartPro
   const bars: CategoryBar[] = groups
     .flatMap((g, gIdx) =>
       g.categories.map(cat => ({
+        id: `${g.groupId}:${cat.categoryId}`,
         categoryId: cat.categoryId,
         categoryName: cat.categoryName,
         tco2e: cat.tco2e,
@@ -62,7 +63,7 @@ export const AnalysisV2BarChart = ({ groups, totalTco2e }: AnalysisV2BarChartPro
           const widthPct = maxTco2e > 0 ? (bar.tco2e / maxTco2e) * 100 : 0;
 
           return (
-            <div key={bar.categoryId} className="group">
+            <div key={bar.id} className="group">
               {/* Label row */}
               <div className="flex items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-1.5 min-w-0">

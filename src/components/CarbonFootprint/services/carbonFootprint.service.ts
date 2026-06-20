@@ -58,9 +58,14 @@ export class CarbonFootprintService {
     formData.append('emissionGroupId', params.emissionGroupId);
     formData.append('emissionSourceCategoryId', params.emissionSourceCategoryId);
     if (params.emissionSubsourceId) formData.append('emissionSubsourceId', params.emissionSubsourceId);
-    if (params.emissionUnitId) formData.append('emissionUnitId', params.emissionUnitId);
+    if (params.emissionUnitSymbol) formData.append('emissionUnitSymbol', params.emissionUnitSymbol);
+    else if (params.emissionUnitId) formData.append('emissionUnitId', params.emissionUnitId);
 
     await apiFetch<void>('/api/carbon-footprint/upload', { method: 'POST', body: formData });
+  }
+
+  static async getCarbonFootprintById(id: string): Promise<ApiCarbonFootprint> {
+    return apiFetch<ApiCarbonFootprint>(`/api/carbon-footprint/${id}`);
   }
 
   static async updateCarbonFootprint(

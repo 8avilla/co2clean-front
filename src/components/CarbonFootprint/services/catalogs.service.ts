@@ -6,6 +6,7 @@ import {
   ApiEmissionSubsource,
   ApiEmissionUnit,
   ApiEmissionFactor,
+  ApiCommercialUnit,
   CarbonFootprintAnalysisStandard,
   CreateUnitTypePayload,
   UpdateUnitTypePayload,
@@ -147,6 +148,11 @@ export class EmissionSubsourcesService {
 
   static async delete(id: string): Promise<void> {
     await apiFetch<void>(`/api/emission-sources/${id}`, { method: 'DELETE' });
+  }
+
+  static async getSourceUnits(id: string): Promise<ApiCommercialUnit[]> {
+    const res = await apiFetch<ApiCommercialUnit[]>(`/api/emission-sources/${id}/units`);
+    return res ?? [];
   }
 }
 

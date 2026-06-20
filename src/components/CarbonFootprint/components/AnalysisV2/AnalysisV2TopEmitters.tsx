@@ -75,7 +75,7 @@ export const AnalysisV2TopEmitters = ({ groups, totalTco2e }: AnalysisV2TopEmitt
 
           return (
             <div
-              key={entry.name}
+              key={i}
               className="flex flex-col items-center gap-2 flex-1 max-w-[200px]"
             >
               {/* Value + percentage */}
