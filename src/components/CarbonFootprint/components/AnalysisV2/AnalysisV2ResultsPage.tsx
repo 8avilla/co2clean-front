@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Building,
   Calendar,
+  Download,
   FileBarChart2,
   FlaskConical,
   LayoutList,
@@ -242,13 +243,27 @@ export const AnalysisV2ResultsPage = ({ analysisId }: AnalysisV2ResultsPageProps
           </div>
         </div>
 
-        <button
-          onClick={refetch}
-          title="Recalcular resultados"
-          className="self-start sm:self-auto p-2 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 border border-zinc-200 rounded-xl transition-colors"
-        >
-          <RefreshCw size={16} />
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {analysis.reportUrl && analysis.status === 'Successful' && (
+            <a
+              href={analysis.reportUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Descargar informe"
+              className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-violet-700 hover:text-violet-900 hover:bg-violet-50 border border-violet-200 rounded-xl transition-colors"
+            >
+              <Download size={16} />
+              Descargar informe
+            </a>
+          )}
+          <button
+            onClick={refetch}
+            title="Recalcular resultados"
+            className="p-2 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 border border-zinc-200 rounded-xl transition-colors"
+          >
+            <RefreshCw size={16} />
+          </button>
+        </div>
       </div>
 
       {/* ── KPI cards ── */}

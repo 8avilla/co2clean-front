@@ -112,7 +112,7 @@ export const AnalysisV2Certificate = ({
               fontFamily="system-ui, -apple-system, sans-serif"
               letterSpacing="5"
             >
-              CO2CLEAN
+              ECOCORE
             </text>
 
             {/* Title */}
@@ -197,7 +197,7 @@ export const AnalysisV2Certificate = ({
             <line x1="60" y1="490" x2="740" y2="490" stroke="#e4e4e7" strokeWidth="1" />
 
             <text x="400" y="514" textAnchor="middle" fontSize="10" fill="#a1a1aa" fontFamily="system-ui, sans-serif">
-              Emitido el {analysisDate} · Generado por CO2Clean Platform
+              Emitido el {analysisDate} · Generado por EcoCore Platform
             </text>
           </svg>
         </div>
