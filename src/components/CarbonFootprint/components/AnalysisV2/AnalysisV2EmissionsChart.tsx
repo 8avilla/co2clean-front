@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { GroupedResult } from './hooks/useAnalysisResults';
+import { useState } from "react";
+import { GroupedResult } from "./hooks/useAnalysisResults";
 
 interface AnalysisV2EmissionsChartProps {
   groups: GroupedResult[];
@@ -9,12 +9,12 @@ interface AnalysisV2EmissionsChartProps {
 }
 
 export const CHART_COLORS = [
-  '#3b82f6', // blue-500
-  '#10b981', // emerald-500
-  '#f59e0b', // amber-500
-  '#8b5cf6', // violet-500
-  '#f43f5e', // rose-500
-  '#06b6d4', // cyan-500
+  "#3b82f6", // blue-500
+  "#10b981", // emerald-500
+  "#f59e0b", // amber-500
+  "#8b5cf6", // violet-500
+  "#f43f5e", // rose-500
+  "#06b6d4", // cyan-500
 ];
 
 const CX = 90;
@@ -37,8 +37,8 @@ function buildArcPath(startDeg: number, endDeg: number): string {
       `A ${OUTER_R} ${OUTER_R} 0 1 1 ${(CX - 0.01).toFixed(3)} ${(CY - OUTER_R).toFixed(3)}`,
       `L ${(CX - 0.01).toFixed(3)} ${(CY - INNER_R).toFixed(3)}`,
       `A ${INNER_R} ${INNER_R} 0 1 0 ${CX} ${CY - INNER_R}`,
-      'Z',
-    ].join(' ');
+      "Z",
+    ].join(" ");
   }
   const large = span > 180 ? 1 : 0;
   const o1 = polar(OUTER_R, startDeg);
@@ -50,15 +50,18 @@ function buildArcPath(startDeg: number, endDeg: number): string {
     `A ${OUTER_R} ${OUTER_R} 0 ${large} 1 ${o2.x.toFixed(3)} ${o2.y.toFixed(3)}`,
     `L ${i2.x.toFixed(3)} ${i2.y.toFixed(3)}`,
     `A ${INNER_R} ${INNER_R} 0 ${large} 0 ${i1.x.toFixed(3)} ${i1.y.toFixed(3)}`,
-    'Z',
-  ].join(' ');
+    "Z",
+  ].join(" ");
 }
 
 function fmtCenter(v: number): string {
-  return Math.round(v).toLocaleString('es-CO');
+  return Math.round(v).toLocaleString("es-CO");
 }
 
-export const AnalysisV2EmissionsChart = ({ groups, totalTco2e }: AnalysisV2EmissionsChartProps) => {
+export const AnalysisV2EmissionsChart = ({
+  groups,
+  totalTco2e,
+}: AnalysisV2EmissionsChartProps) => {
   const [hovered, setHovered] = useState<number | null>(null);
 
   if (groups.length === 0) {
@@ -80,7 +83,12 @@ export const AnalysisV2EmissionsChart = ({ groups, totalTco2e }: AnalysisV2Emiss
     const start = cursor + halfGap;
     const end = cursor + span - halfGap;
     cursor += span;
-    return { group: g, start, end, color: CHART_COLORS[i % CHART_COLORS.length] };
+    return {
+      group: g,
+      start,
+      end,
+      color: CHART_COLORS[i % CHART_COLORS.length],
+    };
   });
 
   const active = hovered !== null ? segments[hovered] : null;
@@ -88,8 +96,12 @@ export const AnalysisV2EmissionsChart = ({ groups, totalTco2e }: AnalysisV2Emiss
   return (
     <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
       <div className="px-6 py-4 border-b border-zinc-50">
-        <h3 className="text-sm font-bold text-zinc-900">Emisiones por Alcance</h3>
-        <p className="text-xs text-zinc-400 mt-0.5">tCO₂e — toneladas equivalentes de CO₂</p>
+        <h3 className="text-sm font-bold text-zinc-900">
+          Emisiones por Grupo de emisión
+        </h3>
+        <p className="text-xs text-zinc-400 mt-0.5">
+          tCO₂e — toneladas equivalentes de CO₂
+        </p>
       </div>
 
       <div className="px-6 py-5 flex flex-col sm:flex-row items-center gap-6">
@@ -99,7 +111,7 @@ export const AnalysisV2EmissionsChart = ({ groups, totalTco2e }: AnalysisV2Emiss
             width={180}
             height={180}
             viewBox="0 0 180 180"
-            aria-label="Gráfico de donuts de emisiones por alcance"
+            aria-label="Emisiones por grupo de emisión"
           >
             {segments.map((seg, i) => (
               <path
@@ -119,7 +131,7 @@ export const AnalysisV2EmissionsChart = ({ groups, totalTco2e }: AnalysisV2Emiss
               y={CY - 6}
               textAnchor="middle"
               fill="#18181b"
-              style={{ fontSize: 14, fontWeight: 800, fontFamily: 'inherit' }}
+              style={{ fontSize: 14, fontWeight: 800, fontFamily: "inherit" }}
             >
               {active ? fmtCenter(active.group.tco2e) : fmtCenter(totalTco2e)}
             </text>
@@ -128,9 +140,9 @@ export const AnalysisV2EmissionsChart = ({ groups, totalTco2e }: AnalysisV2Emiss
               y={CY + 9}
               textAnchor="middle"
               fill="#a1a1aa"
-              style={{ fontSize: 9, fontFamily: 'inherit' }}
+              style={{ fontSize: 9, fontFamily: "inherit" }}
             >
-              {active ? (active.group.groupCode || 'grupo') : 'tCO₂e total'}
+              {active ? active.group.groupCode || "grupo" : "tCO₂e total"}
             </text>
             {active && (
               <text
@@ -138,7 +150,7 @@ export const AnalysisV2EmissionsChart = ({ groups, totalTco2e }: AnalysisV2Emiss
                 y={CY + 22}
                 textAnchor="middle"
                 fill="#a1a1aa"
-                style={{ fontSize: 9, fontFamily: 'inherit' }}
+                style={{ fontSize: 9, fontFamily: "inherit" }}
               >
                 {Math.round(active.group.percentage)}%
               </text>
@@ -166,12 +178,12 @@ export const AnalysisV2EmissionsChart = ({ groups, totalTco2e }: AnalysisV2Emiss
                 <div className="flex items-baseline justify-between gap-1">
                   <span
                     className="text-xs font-semibold truncate transition-colors"
-                    style={{ color: hovered === i ? seg.color : '#3f3f46' }}
+                    style={{ color: hovered === i ? seg.color : "#3f3f46" }}
                   >
                     {seg.group.groupCode || seg.group.groupName}
                   </span>
                   <span className="text-xs font-mono text-zinc-600 shrink-0 tabular-nums">
-                    {Math.round(seg.group.tco2e).toLocaleString('es-CO')}
+                    {Math.round(seg.group.tco2e).toLocaleString("es-CO")}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-1 mt-0.5">
@@ -206,7 +218,7 @@ export const AnalysisV2EmissionsChart = ({ groups, totalTco2e }: AnalysisV2Emiss
         </span>
         <div className="flex items-baseline gap-1">
           <span className="text-lg font-black text-zinc-900 tabular-nums">
-            {Math.round(totalTco2e).toLocaleString('es-CO')}
+            {Math.round(totalTco2e).toLocaleString("es-CO")}
           </span>
           <span className="text-sm text-zinc-400">tCO₂e</span>
         </div>

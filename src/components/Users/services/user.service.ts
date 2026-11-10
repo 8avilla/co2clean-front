@@ -1,12 +1,17 @@
-import { apiFetch } from '@/shared/lib/api-client';
-import { ApiUser, UserFormData, ApiUserCompany } from '../types';
+import { apiFetch } from "@/shared/lib/api-client";
+import { ApiUser, UserFormData, ApiUserCompany } from "../types";
+import type { UserDeletionImpact } from "../utils/deletion-warning";
 
 export class UserService {
   // ── Users ──────────────────────────────────────────────────────────────────
 
-  static async getUsers(search?: string, roleId?: string, companyId?: string): Promise<ApiUser[]> {
-    const res = await apiFetch<ApiUser[]>('/api/users', {
-      params: { limit: 100, search, roleId, companyId },
+  static async getUsers(
+    search?: string,
+    roleId?: string,
+    companyId?: string,
+  ): Promise<ApiUser[]> {
+    const res = await apiFetch<ApiUser[]>("/api/users", {
+      params: { limit: 1000, search, roleId, companyId },
     });
     return res ?? [];
   }
@@ -16,8 +21,8 @@ export class UserService {
   }
 
   static async createUser(data: UserFormData): Promise<ApiUser> {
-    return apiFetch<ApiUser>('/api/users', {
-      method: 'POST',
+    return apiFetch<ApiUser>("/api/users", {
+      method: "POST",
       body: {
         name: data.name,
         email: data.email,
@@ -29,9 +34,12 @@ export class UserService {
     });
   }
 
-  static async updateUser(id: string, data: Partial<UserFormData>): Promise<ApiUser> {
+  static async updateUser(
+    id: string,
+    data: Partial<UserFormData>,
+  ): Promise<ApiUser> {
     return apiFetch<ApiUser>(`/api/users/${id}`, {
-      method: 'PUT',
+      method: "PUT",
       body: {
         name: data.name,
         email: data.email,
@@ -42,8 +50,16 @@ export class UserService {
     });
   }
 
+  /** Counts what depends on a user, to warn before deleting it. */
+  static async getUserDeletionImpact(
+    userId: string,
+  ): Promise<UserDeletionImpact> {
+    const companies = await UserService.getUserCompanies(userId);
+    return { companies: companies.length };
+  }
+
   static async deleteUser(id: string): Promise<void> {
-    await apiFetch<void>(`/api/users/${id}`, { method: 'DELETE' });
+    await apiFetch<void>(`/api/users/${id}`, { method: "DELETE" });
   }
 
   static async changePassword(
@@ -52,7 +68,7 @@ export class UserService {
     newPassword: string,
   ): Promise<void> {
     await apiFetch<void>(`/api/users/${id}/change-password`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: { currentPassword, newPassword },
     });
   }
@@ -60,7 +76,9 @@ export class UserService {
   // ── User Company Associations ──────────────────────────────────────────────
 
   static async getUserCompanies(userId: string): Promise<ApiUserCompany[]> {
-    const res = await apiFetch<ApiUserCompany[]>(`/api/users/${userId}/companies`);
+    const res = await apiFetch<ApiUserCompany[]>(
+      `/api/users/${userId}/companies`,
+    );
     return res ?? [];
   }
 
@@ -70,14 +88,17 @@ export class UserService {
     roleId: string,
   ): Promise<ApiUserCompany> {
     return apiFetch<ApiUserCompany>(`/api/users/${userId}/companies`, {
-      method: 'POST',
+      method: "POST",
       body: { companyId, roleId },
     });
   }
 
-  static async disassociateCompany(userId: string, companyId: string): Promise<void> {
+  static async disassociateCompany(
+    userId: string,
+    companyId: string,
+  ): Promise<void> {
     await apiFetch<void>(`/api/users/${userId}/companies/${companyId}`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
   }
 }

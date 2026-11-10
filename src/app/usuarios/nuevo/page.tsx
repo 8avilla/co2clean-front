@@ -1,24 +1,31 @@
-import { MainLayout } from '@/shared/components/Layout/MainLayout';
-import { UserForm } from '@/components/Users/components/UserForm';
-import { PermissionGuard } from '@/shared/components/PermissionGuard';
-import { PermissionCode } from '@/shared/constants/permissions';
-import { Metadata } from 'next';
+import { MainLayout } from "@/shared/components/Layout/MainLayout";
+import { UserForm } from "@/components/Users/components/UserForm";
+import { PermissionGuard } from "@/shared/components/PermissionGuard";
+import { PermissionCode } from "@/shared/constants/permissions";
+import { Metadata } from "next";
+import { Breadcrumbs } from "@/shared/components/Common/Breadcrumbs";
 
 export const metadata: Metadata = {
-  title: 'Nuevo Usuario | EcoCore',
+  title: "Nuevo usuario | EcoCore",
 };
 
 export default function NewUserPage() {
   return (
     <MainLayout>
-      <PermissionGuard permission={PermissionCode.CREATE_USERS} redirectTo="/usuarios">
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold text-zinc-900">Crear Nuevo Usuario</h1>
-            <p className="text-sm text-zinc-500">Asigna accesos y roles a un nuevo integrante.</p>
-          </div>
+      <PermissionGuard
+        permission={PermissionCode.CREATE_USERS}
+        redirectTo="/usuarios"
+      >
+        <>
+          <Breadcrumbs
+            className="max-w-4xl mx-auto mb-4"
+            items={[
+              { label: "Usuarios", href: "/usuarios" },
+              { label: "Nuevo usuario" },
+            ]}
+          />
           <UserForm />
-        </div>
+        </>
       </PermissionGuard>
     </MainLayout>
   );

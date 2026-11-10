@@ -1,24 +1,31 @@
-import { MainLayout } from '@/shared/components/Layout/MainLayout';
-import { CompanyForm } from '@/components/Companies/components/CompanyForm';
-import { PermissionGuard } from '@/shared/components/PermissionGuard';
-import { PermissionCode } from '@/shared/constants/permissions';
-import { Metadata } from 'next';
+import { MainLayout } from "@/shared/components/Layout/MainLayout";
+import { CompanyForm } from "@/components/Companies/components/CompanyForm";
+import { PermissionGuard } from "@/shared/components/PermissionGuard";
+import { PermissionCode } from "@/shared/constants/permissions";
+import { Metadata } from "next";
+import { Breadcrumbs } from "@/shared/components/Common/Breadcrumbs";
 
 export const metadata: Metadata = {
-  title: 'Nueva Empresa | EcoCore',
+  title: "Nueva empresa | EcoCore",
 };
 
 export default function NewCompanyPage() {
   return (
     <MainLayout>
-      <PermissionGuard permission={PermissionCode.CREATE_COMPANIES} redirectTo="/empresas">
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold text-zinc-900">Crear Nueva Empresa</h1>
-            <p className="text-sm text-zinc-500">Registra una nueva compañía en la plataforma.</p>
-          </div>
+      <PermissionGuard
+        permission={PermissionCode.CREATE_COMPANIES}
+        redirectTo="/empresas"
+      >
+        <>
+          <Breadcrumbs
+            className="max-w-4xl mx-auto mb-4"
+            items={[
+              { label: "Empresas", href: "/empresas" },
+              { label: "Nueva empresa" },
+            ]}
+          />
           <CompanyForm />
-        </div>
+        </>
       </PermissionGuard>
     </MainLayout>
   );

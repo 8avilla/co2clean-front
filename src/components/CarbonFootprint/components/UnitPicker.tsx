@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { ChevronDown, Check } from 'lucide-react';
-import { ApiEmissionUnit, ApiCommercialUnit } from '../types';
+import { useState, useRef } from "react";
+import { ChevronDown, Check } from "lucide-react";
+import { ApiEmissionUnit, ApiCommercialUnit } from "../types";
 
 interface UnitPickerProps {
   value: string;
@@ -12,25 +12,25 @@ interface UnitPickerProps {
   disabled?: boolean;
   disabledPlaceholder?: string;
   emptyLabel?: string;
-  accentColor?: 'teal' | 'violet';
+  accentColor?: "teal" | "violet";
 }
 
 const ACCENTS = {
   teal: {
-    openBorder: 'border-teal-500 ring-2 ring-teal-500/20',
-    badge: 'bg-teal-100 text-teal-700',
-    check: 'text-teal-600',
-    selected: 'bg-teal-50 text-teal-700',
-    selectedBadge: 'bg-teal-100 text-teal-700',
-    hover: 'hover:bg-zinc-50',
+    openBorder: "border-teal-500 ring-2 ring-teal-500/20",
+    badge: "bg-teal-100 text-teal-700",
+    check: "text-teal-600",
+    selected: "bg-teal-50 text-teal-700",
+    selectedBadge: "bg-teal-100 text-teal-700",
+    hover: "hover:bg-zinc-50",
   },
   violet: {
-    openBorder: 'border-violet-500 ring-2 ring-violet-500/20',
-    badge: 'bg-violet-100 text-violet-700',
-    check: 'text-violet-600',
-    selected: 'bg-violet-50 text-violet-700',
-    selectedBadge: 'bg-violet-100 text-violet-700',
-    hover: 'hover:bg-zinc-50',
+    openBorder: "border-violet-500 ring-2 ring-violet-500/20",
+    badge: "bg-violet-100 text-violet-700",
+    check: "text-violet-600",
+    selected: "bg-violet-50 text-violet-700",
+    selectedBadge: "bg-violet-100 text-violet-700",
+    hover: "hover:bg-zinc-50",
   },
 };
 
@@ -40,22 +40,39 @@ export const UnitPicker = ({
   commercialUnits,
   catalogUnits,
   disabled = false,
-  disabledPlaceholder = 'Seleccione una fuente primero',
+  disabledPlaceholder = "Seleccione una fuente primero",
   emptyLabel,
-  accentColor = 'violet',
+  accentColor = "violet",
 }: UnitPickerProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const ac = ACCENTS[accentColor];
 
+  const handleToggle = () => {
+    if (!hasOptions) return;
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPos({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+      });
+    }
+    setIsOpen((prev) => !prev);
+  };
+
   const selectedCommercial = commercialUnits.find(
-    u => (u.emissionUnitId ?? u.displaySymbol) === value
+    (u) => (u.emissionUnitId ?? u.displaySymbol) === value,
   );
   const selectedCatalog = !selectedCommercial
-    ? catalogUnits.find(u => u.id === value)
+    ? catalogUnits.find((u) => u.id === value)
     : undefined;
 
-  const displayName = selectedCommercial?.displayName ?? selectedCatalog?.name ?? null;
-  const displaySymbol = selectedCommercial?.displaySymbol ?? selectedCatalog?.symbol ?? null;
+  const displayName =
+    selectedCommercial?.displayName ?? selectedCatalog?.name ?? null;
+  const displaySymbol =
+    selectedCommercial?.displaySymbol ?? selectedCatalog?.symbol ?? null;
   const hasOptions = commercialUnits.length > 0 || catalogUnits.length > 0;
 
   if (disabled) {
@@ -69,49 +86,65 @@ export const UnitPicker = ({
   return (
     <div className="relative">
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => hasOptions && setIsOpen(prev => !prev)}
+        onClick={handleToggle}
         className={`w-full px-3 py-2 rounded-lg border text-sm text-left flex items-center justify-between gap-2 outline-none transition-all ${
           !hasOptions
-            ? 'border-zinc-100 bg-zinc-50 text-zinc-400 cursor-not-allowed'
+            ? "border-zinc-100 bg-zinc-50 text-zinc-400 cursor-not-allowed"
             : isOpen
-            ? ac.openBorder
-            : 'border-zinc-200 hover:border-zinc-300'
+              ? ac.openBorder
+              : "border-zinc-200 hover:border-zinc-300"
         }`}
       >
         {displayName ? (
           <span className="flex items-center gap-2 min-w-0">
             <span className="text-zinc-800 truncate">{displayName}</span>
             {displaySymbol && (
-              <span className={`font-mono text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${ac.badge}`}>
+              <span
+                className={`font-mono text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${ac.badge}`}
+              >
                 {displaySymbol}
               </span>
             )}
           </span>
         ) : (
           <span className="text-zinc-400">
-            {hasOptions ? 'Selecciona una unidad' : 'Sin unidades disponibles'}
+            {hasOptions ? "Selecciona una unidad" : "Sin unidades disponibles"}
           </span>
         )}
         {hasOptions && (
           <ChevronDown
             size={14}
-            className={`text-zinc-400 flex-shrink-0 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`}
+            className={`text-zinc-400 flex-shrink-0 transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`}
           />
         )}
       </button>
 
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-[70]" onClick={() => setIsOpen(false)} />
-          <div className="absolute top-full left-0 right-0 z-[80] mt-1 bg-white border border-zinc-200 rounded-xl shadow-xl overflow-hidden">
+          <div
+            className="fixed inset-0 z-[70]"
+            onClick={() => setIsOpen(false)}
+          />
+          <div
+            className="fixed z-[80] bg-white border border-zinc-200 rounded-xl shadow-xl overflow-hidden"
+            style={{
+              top: dropdownPos.top,
+              left: dropdownPos.left,
+              width: dropdownPos.width,
+            }}
+          >
             <div className="max-h-64 overflow-y-auto">
               {emptyLabel !== undefined && (
                 <button
                   type="button"
-                  onClick={() => { onChange(''); setIsOpen(false); }}
+                  onClick={() => {
+                    onChange("");
+                    setIsOpen(false);
+                  }}
                   className={`w-full px-3 py-2 text-sm text-left flex items-center gap-2 transition-colors border-b border-zinc-50 ${
-                    !value ? ac.selected : 'text-zinc-500 hover:bg-zinc-50'
+                    !value ? ac.selected : "text-zinc-500 hover:bg-zinc-50"
                   }`}
                 >
                   <span className="w-3 flex-shrink-0">
@@ -128,14 +161,17 @@ export const UnitPicker = ({
                       Unidades comerciales
                     </span>
                   </div>
-                  {commercialUnits.map(u => {
+                  {commercialUnits.map((u) => {
                     const unitVal = u.emissionUnitId ?? u.displaySymbol;
                     const isSel = unitVal === value;
                     return (
                       <button
                         key={u.id}
                         type="button"
-                        onClick={() => { onChange(unitVal); setIsOpen(false); }}
+                        onClick={() => {
+                          onChange(unitVal);
+                          setIsOpen(false);
+                        }}
                         className={`w-full px-3 py-2 text-sm text-left flex items-center justify-between gap-3 transition-colors ${
                           isSel ? ac.selected : `text-zinc-700 ${ac.hover}`
                         }`}
@@ -146,9 +182,13 @@ export const UnitPicker = ({
                           </span>
                           <span className="truncate">{u.displayName}</span>
                         </span>
-                        <span className={`font-mono text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${
-                          isSel ? ac.selectedBadge : 'bg-zinc-100 text-zinc-500'
-                        }`}>
+                        <span
+                          className={`font-mono text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${
+                            isSel
+                              ? ac.selectedBadge
+                              : "bg-zinc-100 text-zinc-500"
+                          }`}
+                        >
                           {u.displaySymbol}
                         </span>
                       </button>
@@ -164,13 +204,16 @@ export const UnitPicker = ({
                       Unidades estándar
                     </span>
                   </div>
-                  {catalogUnits.map(u => {
+                  {catalogUnits.map((u) => {
                     const isSel = u.id === value;
                     return (
                       <button
                         key={u.id}
                         type="button"
-                        onClick={() => { onChange(u.id); setIsOpen(false); }}
+                        onClick={() => {
+                          onChange(u.id);
+                          setIsOpen(false);
+                        }}
                         className={`w-full px-3 py-2 text-sm text-left flex items-center justify-between gap-3 transition-colors ${
                           isSel ? ac.selected : `text-zinc-700 ${ac.hover}`
                         }`}
@@ -181,9 +224,13 @@ export const UnitPicker = ({
                           </span>
                           <span className="truncate">{u.name}</span>
                         </span>
-                        <span className={`font-mono text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${
-                          isSel ? ac.selectedBadge : 'bg-zinc-100 text-zinc-500'
-                        }`}>
+                        <span
+                          className={`font-mono text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${
+                            isSel
+                              ? ac.selectedBadge
+                              : "bg-zinc-100 text-zinc-500"
+                          }`}
+                        >
                           {u.symbol}
                         </span>
                       </button>

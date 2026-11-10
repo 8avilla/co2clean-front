@@ -1,8 +1,8 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 // ── Standards ────────────────────────────────────────────────────────────────
 
-export type CarbonFootprintAnalysisStandard = 'ISO_14064' | 'GHG_Protocol';
+export type CarbonFootprintAnalysisStandard = "ISO_14064" | "GHG_Protocol";
 
 // ── Catalog API shapes ───────────────────────────────────────────────────────
 
@@ -62,7 +62,7 @@ export interface ApiEmissionUnit {
   unitType?: ApiUnitType;
 }
 
-export type FactorMassUnit = 'kg' | 'g' | 'mg';
+export type FactorMassUnit = "kg" | "g" | "mg";
 
 // Converts factorMassUnit to kg so all calculations use consistent units
 export const FACTOR_MASS_UNIT_TO_KG: Record<FactorMassUnit, number> = {
@@ -80,6 +80,7 @@ export interface ApiEmissionFactor {
   gas?: { id: string; chemicalName: string; formula: string; gwp: number };
   factor: number;
   factorMassUnit?: FactorMassUnit;
+  coefficient?: number;
   emissionUnitId: string;
   emissionUnit?: ApiEmissionUnit;
   uncertainty?: number;
@@ -128,7 +129,8 @@ export interface CreateEmissionSubsourcePayload {
   emissionSourceCategoryId?: string;
 }
 
-export type UpdateEmissionSubsourcePayload = Partial<CreateEmissionSubsourcePayload>;
+export type UpdateEmissionSubsourcePayload =
+  Partial<CreateEmissionSubsourcePayload>;
 
 export interface CreateEmissionUnitPayload {
   name: string;
@@ -159,7 +161,7 @@ export interface ApiCarbonFootprint {
   year: number;
   item?: string;
   quantity?: number;
-  loadMode: 'Monthly' | 'Annual';
+  loadMode: "Monthly" | "Annual";
   headquarterId: string;
   companyId: string;
   emissionGroupId?: string;
@@ -207,17 +209,17 @@ export interface UpdateCarbonFootprintPayload {
   emissionSourceCategoryId?: string;
   emissionSubsourceId?: string;
   emissionUnitId?: string;
-  loadMode?: 'Monthly' | 'Annual';
+  loadMode?: "Monthly" | "Annual";
 }
 
 // ── Zod schema for upload form ───────────────────────────────────────────────
 
 export const CarbonFootprintSchema = z.object({
-  headquarterId: z.string().min(1, 'Debe seleccionar una sede'),
-  year: z.string().min(4, 'Año requerido'),
-  emissionGroupId: z.string().min(1, 'Debe seleccionar un grupo de emisiones'),
-  emissionSourceCategoryId: z.string().min(1, 'Fuente de emisión requerida'),
-  emissionSubsourceId: z.string().min(1, 'Subfuente de emisión requerida'),
+  headquarterId: z.string().min(1, "Debe seleccionar una sede"),
+  year: z.string().min(4, "Año requerido"),
+  emissionGroupId: z.string().min(1, "Debe seleccionar un grupo de emisiones"),
+  emissionSourceCategoryId: z.string().min(1, "Fuente de emisión requerida"),
+  emissionSubsourceId: z.string().min(1, "Subfuente de emisión requerida"),
   emissionUnitId: z.string().optional(),
 });
 
@@ -225,7 +227,8 @@ export type CarbonFootprintFormData = z.infer<typeof CarbonFootprintSchema>;
 
 // ── Carbon Footprint Analysis shapes ────────────────────────────────────────
 
-export type CarbonFootprintAnalysisStatus = 'NotStarted' | 'Processing' | 'Successful' | 'Deleted';
+export type CarbonFootprintAnalysisStatus =
+  "NotStarted" | "Processing" | "Successful" | "Deleted";
 
 export interface ApiCarbonFootprintAnalysis {
   id: string;
@@ -259,5 +262,5 @@ export interface CarbonFootprintAnalysisFilters {
 
 // ── UI constants ─────────────────────────────────────────────────────────────
 
-export const LOAD_MODES = ['Monthly', 'Annual'] as const;
-export type LoadMode = typeof LOAD_MODES[number];
+export const LOAD_MODES = ["Monthly", "Annual"] as const;
+export type LoadMode = (typeof LOAD_MODES)[number];

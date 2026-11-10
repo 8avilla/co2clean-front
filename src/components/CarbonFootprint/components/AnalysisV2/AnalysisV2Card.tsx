@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   BarChart2,
@@ -9,12 +9,12 @@ import {
   Play,
   Trash2,
   TriangleAlert,
-} from 'lucide-react';
-import { useRouter } from 'next/navigation';
+} from "lucide-react";
+import { useRouter } from "next/navigation";
 import {
   ApiCarbonFootprintAnalysis,
   CarbonFootprintAnalysisStatus,
-} from '../../types';
+} from "../../types";
 
 interface AnalysisV2CardProps {
   analysis: ApiCarbonFootprintAnalysis;
@@ -30,33 +30,33 @@ const STATUS_CONFIG: Record<
   { label: string; icon: React.ReactNode; classes: string }
 > = {
   NotStarted: {
-    label: 'Sin iniciar',
+    label: "Sin iniciar",
     icon: <Clock size={13} />,
-    classes: 'bg-zinc-100 text-zinc-600 border-zinc-200',
+    classes: "bg-zinc-100 text-zinc-600 border-zinc-200",
   },
   Processing: {
-    label: 'En proceso',
+    label: "En proceso",
     icon: <Loader2 size={13} className="animate-spin" />,
-    classes: 'bg-blue-50 text-blue-700 border-blue-200',
+    classes: "bg-blue-50 text-blue-700 border-blue-200",
   },
   Successful: {
-    label: 'Completado',
+    label: "Completado",
     icon: <CheckCircle2 size={13} />,
-    classes: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    classes: "bg-emerald-50 text-emerald-700 border-emerald-200",
   },
   Deleted: {
-    label: 'Eliminado',
+    label: "Eliminado",
     icon: <TriangleAlert size={13} />,
-    classes: 'bg-red-50 text-red-600 border-red-200',
+    classes: "bg-red-50 text-red-600 border-red-200",
   },
 };
 
 function formatDate(iso?: string): string {
-  if (!iso) return '-';
-  return new Date(iso).toLocaleDateString('es-CO', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
+  if (!iso) return "-";
+  return new Date(iso).toLocaleDateString("es-CO", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
   });
 }
 
@@ -70,24 +70,24 @@ export const AnalysisV2Card = ({
 }: AnalysisV2CardProps) => {
   const router = useRouter();
   const status = STATUS_CONFIG[analysis.status];
-  const isDeleted = analysis.status === 'Deleted';
+  const isDeleted = analysis.status === "Deleted";
 
   return (
     <div
       className={`bg-white rounded-2xl border shadow-sm flex flex-col gap-0 overflow-hidden transition-shadow hover:shadow-md ${
-        isDeleted ? 'border-red-100 opacity-60' : 'border-zinc-100'
+        isDeleted ? "border-red-100 opacity-60" : "border-zinc-100"
       }`}
     >
       {/* Top accent bar by status */}
       <div
         className={`h-1 w-full ${
-          analysis.status === 'Successful'
-            ? 'bg-emerald-400'
-            : analysis.status === 'Processing'
-            ? 'bg-blue-400'
-            : analysis.status === 'Deleted'
-            ? 'bg-red-300'
-            : 'bg-zinc-200'
+          analysis.status === "Successful"
+            ? "bg-emerald-400"
+            : analysis.status === "Processing"
+              ? "bg-blue-400"
+              : analysis.status === "Deleted"
+                ? "bg-red-300"
+                : "bg-zinc-200"
         }`}
       />
 
@@ -95,11 +95,17 @@ export const AnalysisV2Card = ({
         {/* Year + standard */}
         <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="text-3xl font-black text-zinc-900 leading-none">{analysis.year}</p>
-            <p className="text-xs text-zinc-400 font-medium mt-0.5">{companyName}</p>
+            <p className="text-3xl font-black text-zinc-900 leading-none">
+              {analysis.year}
+            </p>
+            <p className="text-xs text-zinc-400 font-medium mt-0.5">
+              {companyName}
+            </p>
           </div>
           <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">
-            {analysis.standard === 'GHG_Protocol' ? 'GHG Protocol' : 'ISO 14064'}
+            {analysis.standard === "GHG_Protocol"
+              ? "GHG Protocol"
+              : "ISO 14064"}
           </span>
         </div>
 
@@ -121,15 +127,17 @@ export const AnalysisV2Card = ({
       {/* Actions footer */}
       {!isDeleted && (
         <div className="px-5 pb-5 flex items-center justify-between gap-2 border-t border-zinc-50 pt-4">
-          {analysis.status === 'Successful' ? (
+          {analysis.status === "Successful" ? (
             <button
-              onClick={() => router.push(`/huella-carbono/analisis-v2/${analysis.id}`)}
+              onClick={() =>
+                router.push(`/huella-carbono/analisis/${analysis.id}`)
+              }
               className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
             >
               <BarChart2 size={15} />
               Ver resultados
             </button>
-          ) : analysis.status === 'Processing' ? (
+          ) : analysis.status === "Processing" ? (
             <span className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-bold bg-blue-50 text-blue-600">
               <Loader2 size={15} className="animate-spin" />
               Procesando...

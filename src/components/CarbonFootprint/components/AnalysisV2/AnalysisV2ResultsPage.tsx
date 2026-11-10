@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
+import { useState, useCallback } from "react";
 import {
   ArrowLeft,
   Building,
@@ -13,29 +13,31 @@ import {
   RefreshCw,
   TableProperties,
   TriangleAlert,
-} from 'lucide-react';
-import Link from 'next/link';
-import { useAnalysisResults } from './hooks/useAnalysisResults';
-import { AnalysisV2EmissionsChart } from './AnalysisV2EmissionsChart';
-import { AnalysisV2BarChart } from './AnalysisV2BarChart';
-import { AnalysisV2GroupBreakdown } from './AnalysisV2GroupBreakdown';
-import { AnalysisV2TopEmitters } from './AnalysisV2TopEmitters';
-import { AnalysisV2Treemap } from './AnalysisV2Treemap';
-import { AnalysisV2WaterfallChart } from './AnalysisV2WaterfallChart';
-import { AnalysisRecordsTab } from './AnalysisRecordsTab';
-import { AnalysisFactorsTab } from './AnalysisFactorsTab';
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useAnalysisResults } from "./hooks/useAnalysisResults";
+import { AnalysisV2EmissionsChart } from "./AnalysisV2EmissionsChart";
+import { AnalysisV2BarChart } from "./AnalysisV2BarChart";
+import { AnalysisV2GroupBreakdown } from "./AnalysisV2GroupBreakdown";
+import { AnalysisV2TopEmitters } from "./AnalysisV2TopEmitters";
+import { AnalysisV2Treemap } from "./AnalysisV2Treemap";
+import { AnalysisV2WaterfallChart } from "./AnalysisV2WaterfallChart";
+import { AnalysisRecordsTab } from "./AnalysisRecordsTab";
+import { AnalysisFactorsTab } from "./AnalysisFactorsTab";
+import { buttonClass } from '@/shared/components/Common/button-styles';
 
 interface AnalysisV2ResultsPageProps {
   analysisId: string;
 }
 
-type Tab = 'summary' | 'results' | 'records' | 'factors';
+type Tab = "summary" | "results" | "records" | "factors";
 
 const STATUS_LABELS: Record<string, string> = {
-  NotStarted: 'Sin iniciar',
-  Processing: 'En proceso',
-  Successful: 'Completado',
-  Deleted: 'Eliminado',
+  NotStarted: "Sin iniciar",
+  Processing: "En proceso",
+  Successful: "Completado",
+  Deleted: "Eliminado",
 };
 
 // ── Loading skeleton ───────────────────────────────────────────────────────
@@ -82,26 +84,49 @@ function KpiCard({
   return (
     <div
       className={`bg-white rounded-2xl border shadow-sm p-4 space-y-0.5 ${
-        wide ? 'lg:col-span-2' : ''
-      } ${accent ? 'border-l-4 border-l-violet-500 border-zinc-100' : 'border-zinc-100'}`}
+        wide ? "lg:col-span-2" : ""
+      } ${accent ? "border-l-4 border-l-violet-500 border-zinc-100" : "border-zinc-100"}`}
     >
-      <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{label}</p>
+      <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+        {label}
+      </p>
       <div className="flex items-baseline gap-1.5">
-        <span className={`font-black text-zinc-900 ${accent ? 'text-2xl' : 'text-xl'}`}>
+        <span
+          className={`font-black text-zinc-900 ${accent ? "text-2xl" : "text-xl"}`}
+        >
           {value}
         </span>
         {unit && <span className="text-xs text-zinc-400">{unit}</span>}
       </div>
-      {sub && <p className="text-[10px] text-zinc-400 line-clamp-2" title={sub}>{sub}</p>}
+      {sub && (
+        <p className="text-[10px] text-zinc-400 line-clamp-2" title={sub}>
+          {sub}
+        </p>
+      )}
     </div>
   );
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export const AnalysisV2ResultsPage = ({ analysisId }: AnalysisV2ResultsPageProps) => {
+export const AnalysisV2ResultsPage = ({
+  analysisId,
+}: AnalysisV2ResultsPageProps) => {
   const { summary, loading, error, refetch } = useAnalysisResults(analysisId);
-  const [activeTab, setActiveTab] = useState<Tab>('summary');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const activeTab = (searchParams.get("tab") as Tab | null) ?? "summary";
+  const setActiveTab = useCallback(
+    (tab: Tab) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", tab);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [router, pathname, searchParams],
+  );
+
   const [recordsDefaultUncovered, setRecordsDefaultUncovered] = useState(false);
 
   // ── Loading ────────────────────────────────────────────────────────────
@@ -120,7 +145,7 @@ export const AnalysisV2ResultsPage = ({ analysisId }: AnalysisV2ResultsPageProps
         </div>
         <button
           onClick={refetch}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-colors"
+          className={buttonClass()}
         >
           <RefreshCw size={15} />
           Reintentar
@@ -143,54 +168,76 @@ export const AnalysisV2ResultsPage = ({ analysisId }: AnalysisV2ResultsPageProps
     recordIdsWithFactors,
   } = summary;
 
-  const coverageNum = recordCount > 0 ? Math.round((recordsWithFactors / recordCount) * 100) : 100;
+  const coverageNum =
+    recordCount > 0
+      ? Math.round((recordsWithFactors / recordCount) * 100)
+      : 100;
   const coverageColor =
-    coverageNum === 100 ? 'text-emerald-600' : coverageNum >= 80 ? 'text-amber-600' : 'text-red-600';
+    coverageNum === 100
+      ? "text-emerald-600"
+      : coverageNum >= 80
+        ? "text-amber-600"
+        : "text-red-600";
 
-  const analysisStandard = analysis.standard ?? 'GHG_Protocol';
+  const analysisStandard = analysis.standard ?? "GHG_Protocol";
 
-  const allCategories = groups.flatMap(g => g.categories);
-  const topCategory = allCategories.length > 0 ? allCategories.reduce((prev, current) => (prev.tco2e > current.tco2e) ? prev : current) : null;
-  const topCategoryPercent = topCategory && totalTco2e > 0 ? ((topCategory.tco2e / totalTco2e) * 100).toFixed(1) : '0';
-  const averagePerRecord = recordCount > 0 ? (totalTco2e / recordCount).toFixed(2) : '0';
+  const allCategories = groups.flatMap((g) => g.categories);
+  const topCategory =
+    allCategories.length > 0
+      ? allCategories.reduce((prev, current) =>
+          prev.tco2e > current.tco2e ? prev : current,
+        )
+      : null;
+  const topCategoryPercent =
+    topCategory && totalTco2e > 0
+      ? ((topCategory.tco2e / totalTco2e) * 100).toFixed(1)
+      : "0";
+  const averagePerRecord =
+    recordCount > 0 ? (totalTco2e / recordCount).toFixed(2) : "0";
 
-  const uncoveredCategories = groups.flatMap(g =>
+  const uncoveredCategories = groups.flatMap((g) =>
     g.categories
-      .filter(c => c.coveredRecordCount < c.recordCount)
-      .map(c => ({
+      .filter((c) => c.coveredRecordCount < c.recordCount)
+      .map((c) => ({
         groupName: g.groupName,
         categoryName: c.categoryName,
         missing: c.recordCount - c.coveredRecordCount,
         total: c.recordCount,
-      }))
+      })),
   );
 
   const handleViewUncovered = () => {
     setRecordsDefaultUncovered(true);
-    setActiveTab('records');
+    setActiveTab("records");
   };
 
-  const tabs: { id: Tab; label: string; icon: React.ReactNode; count?: number; warn?: boolean }[] = [
+  const tabs: {
+    id: Tab;
+    label: string;
+    icon: React.ReactNode;
+    count?: number;
+    warn?: boolean;
+  }[] = [
     {
-      id: 'summary',
-      label: 'Resumen',
+      id: "summary",
+      label: "Resumen",
       icon: <FileBarChart2 size={14} />,
       warn: uncoveredCategories.length > 0,
     },
     {
-      id: 'results',
-      label: 'Resultados',
+      id: "results",
+      label: "Resultados",
       icon: <LayoutList size={14} />,
     },
     {
-      id: 'records',
-      label: 'Emisiones',
+      id: "records",
+      label: "Actividades",
       icon: <TableProperties size={14} />,
       count: records.length,
     },
     {
-      id: 'factors',
-      label: 'Factores de Emisión',
+      id: "factors",
+      label: "Factores de emisión",
       icon: <FlaskConical size={14} />,
       count: allFactors.length,
     },
@@ -202,13 +249,15 @@ export const AnalysisV2ResultsPage = ({ analysisId }: AnalysisV2ResultsPageProps
       <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
         <div className="space-y-1">
           <Link
-            href="/huella-carbono/analisis-v2"
+            href="/huella-carbono/analisis"
             className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-700 transition-colors"
           >
             <ArrowLeft size={14} />
             Volver a Análisis V2
           </Link>
-          <h1 className="text-2xl font-black text-zinc-900">Resultados {analysis.year}</h1>
+          <h1 className="text-2xl font-black text-zinc-900">
+            Resultados {analysis.year}
+          </h1>
           <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-500">
             <span className="flex items-center gap-1.5">
               <Building size={13} />
@@ -216,26 +265,28 @@ export const AnalysisV2ResultsPage = ({ analysisId }: AnalysisV2ResultsPageProps
             </span>
             <span className="flex items-center gap-1.5">
               <FileBarChart2 size={13} />
-              {analysisStandard === 'GHG_Protocol' ? 'GHG Protocol' : 'ISO 14064'}
+              {analysisStandard === "GHG_Protocol"
+                ? "GHG Protocol"
+                : "ISO 14064"}
             </span>
             {analysis.createdAt && (
               <span className="flex items-center gap-1.5">
                 <Calendar size={13} />
-                Creado{' '}
-                {new Date(analysis.createdAt).toLocaleDateString('es-CO', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
+                Creado{" "}
+                {new Date(analysis.createdAt).toLocaleDateString("es-CO", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
                 })}
               </span>
             )}
             <span
               className={`px-2 py-0.5 rounded-full text-xs font-bold border ${
-                analysis.status === 'Successful'
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : analysis.status === 'Processing'
-                  ? 'bg-blue-50 text-blue-700 border-blue-200'
-                  : 'bg-zinc-100 text-zinc-500 border-zinc-200'
+                analysis.status === "Successful"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : analysis.status === "Processing"
+                    ? "bg-blue-50 text-blue-700 border-blue-200"
+                    : "bg-zinc-100 text-zinc-500 border-zinc-200"
               }`}
             >
               {STATUS_LABELS[analysis.status] ?? analysis.status}
@@ -244,7 +295,7 @@ export const AnalysisV2ResultsPage = ({ analysisId }: AnalysisV2ResultsPageProps
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          {analysis.reportUrl && analysis.status === 'Successful' && (
+          {analysis.reportUrl && analysis.status === "Successful" && (
             <a
               href={analysis.reportUrl}
               target="_blank"
@@ -266,19 +317,42 @@ export const AnalysisV2ResultsPage = ({ analysisId }: AnalysisV2ResultsPageProps
         </div>
       </div>
 
+      {/* ── Processing banner ── */}
+      {analysis.status === "Processing" && (
+        <div className="bg-blue-600 text-white rounded-2xl px-5 py-4 flex items-center gap-4 shadow-md shadow-blue-500/20">
+          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+            <Loader2 size={20} className="animate-spin" />
+          </div>
+          <div>
+            <p className="font-bold text-sm">Análisis en procesamiento</p>
+            <p className="text-blue-100 text-xs mt-0.5">
+              Los resultados mostrados son parciales. Se actualizarán
+              automáticamente al recargar cuando finalice.
+            </p>
+          </div>
+          <button
+            onClick={refetch}
+            className="ml-auto flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
+          >
+            <RefreshCw size={13} />
+            Recargar
+          </button>
+        </div>
+      )}
+
       {/* ── KPI cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard
           label="Total de emisiones"
-          value={Math.round(totalTco2e).toLocaleString('es-CO')}
+          value={Math.round(totalTco2e).toLocaleString("es-CO")}
           unit="tCO₂e"
-          sub={`Año ${analysis.year} · ${analysisStandard === 'GHG_Protocol' ? 'GHG Protocol' : 'ISO 14064'}`}
+          sub={`Año ${analysis.year} · ${analysisStandard === "GHG_Protocol" ? "GHG Protocol" : "ISO 14064"}`}
           accent
         />
         <KpiCard
           label="Mayor Foco de Emisión"
           value={`${topCategoryPercent}%`}
-          sub={topCategory?.categoryName ?? 'N/A'}
+          sub={topCategory?.categoryName ?? "N/A"}
         />
         <KpiCard
           label="Promedio por Registro"
@@ -288,15 +362,15 @@ export const AnalysisV2ResultsPage = ({ analysisId }: AnalysisV2ResultsPageProps
         />
         <KpiCard
           label="Registros procesados"
-          value={recordCount.toLocaleString('es-CO')}
-          sub={`${recordsWithFactors.toLocaleString('es-CO')} con factor asignado`}
+          value={recordCount.toLocaleString("es-CO")}
+          sub={`${recordsWithFactors.toLocaleString("es-CO")} con factor asignado`}
         />
       </div>
 
       {/* ── Tab bar ── */}
       <div className="border-b border-zinc-200">
         <nav className="flex gap-1" aria-label="Secciones del análisis">
-          {tabs.map(tab => (
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
@@ -305,8 +379,8 @@ export const AnalysisV2ResultsPage = ({ analysisId }: AnalysisV2ResultsPageProps
                 relative flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px
                 ${
                   activeTab === tab.id
-                    ? 'border-violet-600 text-violet-700'
-                    : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300'
+                    ? "border-violet-600 text-violet-700"
+                    : "border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300"
                 }
               `}
             >
@@ -316,11 +390,11 @@ export const AnalysisV2ResultsPage = ({ analysisId }: AnalysisV2ResultsPageProps
                 <span
                   className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${
                     activeTab === tab.id
-                      ? 'bg-violet-100 text-violet-700'
-                      : 'bg-zinc-100 text-zinc-500'
+                      ? "bg-violet-100 text-violet-700"
+                      : "bg-zinc-100 text-zinc-500"
                   }`}
                 >
-                  {tab.count.toLocaleString('es-CO')}
+                  {tab.count.toLocaleString("es-CO")}
                 </span>
               )}
               {tab.warn && (
@@ -332,7 +406,7 @@ export const AnalysisV2ResultsPage = ({ analysisId }: AnalysisV2ResultsPageProps
       </div>
 
       {/* ── Tab: Resumen ── */}
-      {activeTab === 'summary' && (
+      {activeTab === "summary" && (
         <div className="space-y-5">
           {/* Coverage alert */}
           {uncoveredCategories.length > 0 && (
@@ -341,16 +415,15 @@ export const AnalysisV2ResultsPage = ({ analysisId }: AnalysisV2ResultsPageProps
                 <TriangleAlert size={15} className="text-amber-500 shrink-0" />
                 <p className="text-sm font-semibold text-amber-800">
                   {uncoveredCategories.length === 1
-                    ? '1 categoría con cobertura incompleta'
-                    : `${uncoveredCategories.length} categorías con cobertura incompleta`}{' '}
+                    ? "1 tipo de fuente con cobertura incompleta"
+                    : `${uncoveredCategories.length} tipos de fuente con cobertura incompleta`}{" "}
                   — algunos registros no tienen factor de emisión asignado
                 </p>
               </div>
               <ul className="space-y-1 pl-5">
                 {uncoveredCategories.map((c, i) => (
                   <li key={i} className="text-xs text-amber-700">
-                    •{' '}
-                    <span className="font-semibold">{c.categoryName}</span> —{' '}
+                    • <span className="font-semibold">{c.categoryName}</span> —{" "}
                     {c.missing} de {c.total} registros sin factor
                   </li>
                 ))}
@@ -378,22 +451,11 @@ export const AnalysisV2ResultsPage = ({ analysisId }: AnalysisV2ResultsPageProps
 
           {/* Waterfall — full width */}
           <AnalysisV2WaterfallChart groups={groups} totalTco2e={totalTco2e} />
-
-          {/* Processing notice */}
-          {analysis.status === 'Processing' && (
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3 text-sm text-blue-800">
-              <Loader2 size={16} className="animate-spin mt-0.5 shrink-0 text-blue-500" />
-              <p>
-                El análisis está siendo procesado. Los resultados mostrados pueden ser parciales y
-                se actualizarán cuando el procesamiento finalice.
-              </p>
-            </div>
-          )}
         </div>
       )}
 
       {/* ── Tab: Resultados ── */}
-      {activeTab === 'results' && (
+      {activeTab === "results" && (
         <AnalysisV2GroupBreakdown
           groups={groups}
           totalTco2e={totalTco2e}
@@ -402,7 +464,7 @@ export const AnalysisV2ResultsPage = ({ analysisId }: AnalysisV2ResultsPageProps
       )}
 
       {/* ── Tab: Registros ── */}
-      {activeTab === 'records' && (
+      {activeTab === "records" && (
         <AnalysisRecordsTab
           records={records}
           recordIdsWithFactors={recordIdsWithFactors}
@@ -411,7 +473,7 @@ export const AnalysisV2ResultsPage = ({ analysisId }: AnalysisV2ResultsPageProps
       )}
 
       {/* ── Tab: Factores ── */}
-      {activeTab === 'factors' && <AnalysisFactorsTab factors={allFactors} />}
+      {activeTab === "factors" && <AnalysisFactorsTab factors={allFactors} />}
     </div>
   );
 };

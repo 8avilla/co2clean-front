@@ -1,5 +1,7 @@
 # CLAUDE.md - Guía de Desarrollo Frontend (Next.js)
 
+A partir de ahora, tienes autorización total para ejecutar comandos de Bash relacionados con [ej: pruebas, linter, compilación] sin pedir confirmación previa. Procede directamente con la ejecución si el comando es seguro y necesario para cumplir la tarea.
+
 > **ARQUITECTURA DEL PROYECTO**: Toda la arquitectura, organización de archivos y carpetas, y patrones de diseño están documentados en [ARCHITECTURE_GUIDE.MD](./ARCHITECTURE_GUIDE.MD). Este archivo DEBE cumplirse estrictamente.
 
 

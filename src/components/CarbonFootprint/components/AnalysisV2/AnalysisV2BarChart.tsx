@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { GroupedResult } from './hooks/useAnalysisResults';
-import { CHART_COLORS } from './AnalysisV2EmissionsChart';
+import { GroupedResult } from "./hooks/useAnalysisResults";
+import { CHART_COLORS } from "./AnalysisV2EmissionsChart";
 
 interface AnalysisV2BarChartProps {
   groups: GroupedResult[];
@@ -19,11 +19,17 @@ interface CategoryBar {
 }
 
 function fmt(v: number): string {
-  if (v === 0) return '0';
-  return v.toLocaleString('es-CO', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  if (v === 0) return "0";
+  return v.toLocaleString("es-CO", {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  });
 }
 
-export const AnalysisV2BarChart = ({ groups, totalTco2e }: AnalysisV2BarChartProps) => {
+export const AnalysisV2BarChart = ({
+  groups,
+  totalTco2e,
+}: AnalysisV2BarChartProps) => {
   if (groups.length === 0 || totalTco2e === 0) {
     return (
       <div className="bg-white rounded-2xl border border-zinc-100 p-8 flex flex-col items-center gap-3 text-zinc-400">
@@ -35,7 +41,7 @@ export const AnalysisV2BarChart = ({ groups, totalTco2e }: AnalysisV2BarChartPro
   // Flatten categories with group color, sorted by tCO₂e desc
   const bars: CategoryBar[] = groups
     .flatMap((g, gIdx) =>
-      g.categories.map(cat => ({
+      g.categories.map((cat) => ({
         id: `${g.groupId}:${cat.categoryId}`,
         categoryId: cat.categoryId,
         categoryName: cat.categoryName,
@@ -43,7 +49,7 @@ export const AnalysisV2BarChart = ({ groups, totalTco2e }: AnalysisV2BarChartPro
         percentage: cat.percentage,
         color: CHART_COLORS[gIdx % CHART_COLORS.length],
         groupName: g.groupCode || g.groupName,
-      }))
+      })),
     )
     .sort((a, b) => b.tco2e - a.tco2e);
 
@@ -53,13 +59,17 @@ export const AnalysisV2BarChart = ({ groups, totalTco2e }: AnalysisV2BarChartPro
     <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden flex flex-col">
       {/* Header */}
       <div className="px-6 py-4 border-b border-zinc-50 flex-shrink-0">
-        <h3 className="text-sm font-bold text-zinc-900">Emisiones por Categoría</h3>
-        <p className="text-xs text-zinc-400 mt-0.5">tCO₂e por categoría de emisión — de mayor a menor</p>
+        <h3 className="text-sm font-bold text-zinc-900">
+          Emisiones por tipo de fuente
+        </h3>
+        <p className="text-xs text-zinc-400 mt-0.5">
+          tCO₂e por tipo de fuente — de mayor a menor
+        </p>
       </div>
 
       {/* Bars */}
       <div className="flex-1 px-6 py-5 space-y-3 overflow-y-auto">
-        {bars.map(bar => {
+        {bars.map((bar) => {
           const widthPct = maxTco2e > 0 ? (bar.tco2e / maxTco2e) * 100 : 0;
 
           return (
@@ -116,11 +126,12 @@ export const AnalysisV2BarChart = ({ groups, totalTco2e }: AnalysisV2BarChartPro
       {/* Footer */}
       <div className="px-6 py-3.5 bg-zinc-50 border-t border-zinc-100 flex justify-between items-center flex-shrink-0">
         <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-          {bars.length} {bars.length === 1 ? 'categoría' : 'categorías'}
+          {bars.length}{" "}
+          {bars.length === 1 ? "tipo de fuente" : "tipos de fuente"}
         </span>
         <div className="flex items-baseline gap-1">
           <span className="text-lg font-black text-zinc-900 tabular-nums">
-            {Math.round(totalTco2e).toLocaleString('es-CO')}
+            {Math.round(totalTco2e).toLocaleString("es-CO")}
           </span>
           <span className="text-sm text-zinc-400">tCO₂e</span>
         </div>

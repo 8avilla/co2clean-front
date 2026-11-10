@@ -1,4 +1,5 @@
-import { z } from 'zod';
+import { z } from "zod";
+import { hasValidNitCheckDigit, hasValidNitFormat } from "../utils/nit";
 
 // ── API response shapes ─────────────────────────────────────────────────────
 
@@ -36,21 +37,28 @@ export interface ApiCompany {
 
 export const CompanySchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  nit: z.string().min(5, 'NIT inválido'),
-  email: z.string().email('Email inválido'),
+  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+  nit: z
+    .string()
+    .min(5, "NIT inválido")
+    .refine(hasValidNitFormat, "Formato inválido. Ejemplo: 890.903.938-8")
+    .refine(
+      hasValidNitCheckDigit,
+      "El dígito de verificación no coincide con el NIT",
+    ),
+  email: z.string().email("Email inválido"),
   description: z.string().optional(),
   logoUrl: z.string().optional(),
   country: z.string().optional(),
-  departmentId: z.string().min(1, 'El departamento es requerido'),
-  municipalityId: z.string().min(1, 'El municipio es requerido'),
-  address: z.string().min(5, 'La dirección es requerida'),
+  departmentId: z.string().min(1, "El departamento es requerido"),
+  municipalityId: z.string().min(1, "El municipio es requerido"),
+  address: z.string().min(5, "La dirección es requerida"),
 });
 
 export const HeadquarterSchema = z.object({
   id: z.string().optional(),
   companyId: z.string().optional(),
-  name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
   description: z.string().optional(),
   address: z.string().optional(),
   departmentId: z.string().optional(),

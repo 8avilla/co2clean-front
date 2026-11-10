@@ -1,20 +1,23 @@
-'use client';
+"use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import { 
-  User, 
-  Mail, 
-  Camera, 
-  Lock, 
-  ShieldCheck, 
-  Save, 
+import React, { useState, useRef, useEffect } from "react";
+import {
+  User,
+  Mail,
+  Camera,
+  Lock,
+  ShieldCheck,
+  Save,
   KeyRound,
   Eye,
   EyeOff,
-  CheckCircle2
-} from 'lucide-react';
-import { toast } from 'sonner';
+  CheckCircle2,
+} from "lucide-react";
+import { toast } from "sonner";
+import { getStoredUser } from "@/shared/lib/session";
 
+import { FORM_LABEL_CLASS } from "@/shared/components/Common/form-styles";
+import { buttonClass } from '@/shared/components/Common/button-styles';
 export const UserProfile = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -22,37 +25,29 @@ export const UserProfile = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [profileData, setProfileData] = useState({
-    name: 'Ivan Villamil',
-    email: '8avilla@gmail.com',
-    role: 'Super administrador',
-    company: 'Expreso Brasilia S.A',
-    avatar: null as string | null
+    name: "Ivan Villamil",
+    email: "8avilla@gmail.com",
+    role: "Super administrador",
+    company: "Expreso Brasilia S.A",
+    avatar: null as string | null,
   });
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('user');
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          setProfileData(prev => ({
-            ...prev,
-            name: parsed.name || prev.name,
-            email: parsed.email || prev.email,
-            role: parsed.role || prev.role,
-            company: parsed.company?.name || prev.company
-          }));
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    }
+    const stored = getStoredUser();
+    if (!stored) return;
+    setProfileData((prev) => ({
+      ...prev,
+      name: stored.name || prev.name,
+      email: stored.email || prev.email,
+      role: stored.role || prev.role,
+      company: stored.company?.name || prev.company,
+    }));
   }, []);
 
   const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
 
   const handleAvatarClick = () => {
@@ -64,8 +59,11 @@ export const UserProfile = () => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setProfileData(prev => ({ ...prev, avatar: reader.result as string }));
-        toast.success('Imagen de perfil actualizada localmente');
+        setProfileData((prev) => ({
+          ...prev,
+          avatar: reader.result as string,
+        }));
+        toast.success("Imagen de perfil actualizada localmente");
       };
       reader.readAsDataURL(file);
     }
@@ -77,22 +75,26 @@ export const UserProfile = () => {
     // Simulate API call
     setTimeout(() => {
       setIsLoading(false);
-      toast.success('Perfil actualizado correctamente');
+      toast.success("Perfil actualizado correctamente");
     }, 1000);
   };
 
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error('Las contraseñas no coinciden');
+      toast.error("Las contraseñas no coinciden");
       return;
     }
     setIsLoading(true);
     // Simulate API call
     setTimeout(() => {
       setIsLoading(false);
-      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      toast.success('Contraseña actualizada correctamente');
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+      toast.success("Contraseña actualizada correctamente");
     }, 1000);
   };
 
@@ -111,12 +113,16 @@ export const UserProfile = () => {
             <div className="w-32 h-32 rounded-3xl bg-white p-1 shadow-2xl border-4 border-white dark:border-zinc-900 overflow-hidden">
               <div className="w-full h-full rounded-2xl bg-zinc-100 flex items-center justify-center text-zinc-400 overflow-hidden relative">
                 {profileData.avatar ? (
-                  <img src={profileData.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                  <img
+                    src={profileData.avatar}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
                   <User size={48} />
                 )}
-                
-                <button 
+
+                <button
                   onClick={handleAvatarClick}
                   className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
                 >
@@ -124,11 +130,11 @@ export const UserProfile = () => {
                 </button>
               </div>
             </div>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleFileChange} 
-              className="hidden" 
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
               accept="image/*"
             />
           </div>
@@ -161,8 +167,12 @@ export const UserProfile = () => {
                   <User size={20} />
                 </div>
                 <div>
-                  <h2 className="font-bold text-zinc-900 dark:text-zinc-50">Información Personal</h2>
-                  <p className="text-xs text-zinc-500">Actualiza tu nombre y datos de contacto</p>
+                  <h2 className="font-bold text-zinc-900 dark:text-zinc-50">
+                    Información Personal
+                  </h2>
+                  <p className="text-xs text-zinc-500">
+                    Actualiza tu nombre y datos de contacto
+                  </p>
                 </div>
               </div>
             </div>
@@ -170,23 +180,34 @@ export const UserProfile = () => {
             <form onSubmit={handleUpdateProfile} className="p-8 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Nombre Completo</label>
+                  <label className={FORM_LABEL_CLASS}>Nombre Completo</label>
                   <div className="relative">
-                    <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                    <input 
+                    <User
+                      size={18}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+                    />
+                    <input
                       type="text"
                       value={profileData.name}
-                      onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) =>
+                        setProfileData((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
                       className="w-full pl-10 pr-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-medium"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Correo Electrónico</label>
+                  <label className={FORM_LABEL_CLASS}>Correo Electrónico</label>
                   <div className="relative">
-                    <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                    <input 
+                    <Mail
+                      size={18}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+                    />
+                    <input
                       type="email"
                       value={profileData.email}
                       readOnly
@@ -196,8 +217,8 @@ export const UserProfile = () => {
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Empresa Asociada</label>
-                  <input 
+                  <label className={FORM_LABEL_CLASS}>Empresa Asociada</label>
+                  <input
                     type="text"
                     value={profileData.company}
                     readOnly
@@ -207,13 +228,13 @@ export const UserProfile = () => {
               </div>
 
               <div className="pt-4 flex justify-end">
-                <button 
+                <button
                   type="submit"
                   disabled={isLoading}
-                  className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
+                  className={buttonClass()}
                 >
                   <Save size={18} />
-                  {isLoading ? 'Guardando...' : 'Guardar Cambios'}
+                  {isLoading ? "Guardando..." : "Guardar Cambios"}
                 </button>
               </div>
             </form>
@@ -227,21 +248,31 @@ export const UserProfile = () => {
               <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
                 <Lock size={20} />
               </div>
-              <h2 className="font-bold text-zinc-900 dark:text-zinc-50">Seguridad</h2>
+              <h2 className="font-bold text-zinc-900 dark:text-zinc-50">
+                Seguridad
+              </h2>
             </div>
 
             <form onSubmit={handleChangePassword} className="p-6 space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Contraseña Actual</label>
+                <label className={FORM_LABEL_CLASS}>Contraseña Actual</label>
                 <div className="relative">
-                  <KeyRound size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                  <input 
-                    type={showPassword ? 'text' : 'password'}
+                  <KeyRound
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+                  />
+                  <input
+                    type={showPassword ? "text" : "password"}
                     value={passwordData.currentPassword}
-                    onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                    onChange={(e) =>
+                      setPasswordData((prev) => ({
+                        ...prev,
+                        currentPassword: e.target.value,
+                      }))
+                    }
                     className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm"
                   />
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
@@ -252,16 +283,24 @@ export const UserProfile = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Nueva Contraseña</label>
+                <label className={FORM_LABEL_CLASS}>Nueva Contraseña</label>
                 <div className="relative">
-                  <KeyRound size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                  <input 
-                    type={showNewPassword ? 'text' : 'password'}
+                  <KeyRound
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+                  />
+                  <input
+                    type={showNewPassword ? "text" : "password"}
                     value={passwordData.newPassword}
-                    onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                    onChange={(e) =>
+                      setPasswordData((prev) => ({
+                        ...prev,
+                        newPassword: e.target.value,
+                      }))
+                    }
                     className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm"
                   />
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setShowNewPassword(!showNewPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
@@ -272,30 +311,40 @@ export const UserProfile = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Confirmar Contraseña</label>
+                <label className={FORM_LABEL_CLASS}>Confirmar Contraseña</label>
                 <div className="relative">
-                  <CheckCircle2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                  <input 
+                  <CheckCircle2
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+                  />
+                  <input
                     type="password"
                     value={passwordData.confirmPassword}
-                    onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    onChange={(e) =>
+                      setPasswordData((prev) => ({
+                        ...prev,
+                        confirmPassword: e.target.value,
+                      }))
+                    }
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all text-sm"
                   />
                 </div>
               </div>
 
-              <button 
+              <button
                 type="submit"
                 disabled={isLoading}
                 className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 rounded-xl text-sm font-bold hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-all active:scale-[0.98] disabled:opacity-50"
               >
-                {isLoading ? 'Procesando...' : 'Cambiar Contraseña'}
+                {isLoading ? "Procesando..." : "Cambiar Contraseña"}
               </button>
             </form>
           </div>
 
           <div className="p-6 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded-3xl space-y-3">
-            <h3 className="font-bold text-amber-800 dark:text-amber-500 text-sm">Consejos de seguridad</h3>
+            <h3 className="font-bold text-amber-800 dark:text-amber-500 text-sm">
+              Consejos de seguridad
+            </h3>
             <ul className="text-xs text-amber-700 dark:text-amber-600/80 space-y-2 list-disc pl-4">
               <li>Usa al menos 8 caracteres</li>
               <li>Incluye una mezcla de letras, números y símbolos</li>

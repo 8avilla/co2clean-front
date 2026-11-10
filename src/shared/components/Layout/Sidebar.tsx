@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
 // ── Mejora 7: sin namespace React — imports nombrados ──
-import { useState, useEffect, type ReactNode } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useState, useEffect, type ReactNode } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Home,
   LogOut,
@@ -14,13 +14,15 @@ import {
   ChevronLeft,
   ChevronRight,
   Settings,
-} from 'lucide-react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-import { AuthService } from '@/components/Auth/services/auth.service';
-import { usePermission } from '@/shared/hooks/usePermission';
-import { PermissionCode } from '@/shared/constants/permissions';
-import { useSidebar } from './SidebarContext';
+} from "lucide-react";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+import { AuthService } from "@/components/Auth/services/auth.service";
+import { usePermission } from "@/shared/hooks/usePermission";
+import { PermissionCode } from "@/shared/constants/permissions";
+import { useSidebar } from "./SidebarContext";
+import { getStoredUser } from "@/shared/lib/session";
+import { getVisibleSettingsItems } from "./settings-nav";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -28,7 +30,14 @@ function cn(...inputs: ClassValue[]) {
 
 // ── Mejora 6: iniciales del usuario ──
 const getInitials = (name: string) =>
-  name.trim().split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+  name
+    .trim()
+    .split(" ")
+    .map((w) => w[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
 interface NavItemProps {
   href: string;
@@ -40,17 +49,24 @@ interface NavItemProps {
 }
 
 // ── Mejora 1+2: activeClass unificado — teal para todos los ítems ──
-const NavItem = ({ href, icon, label, isActive, isCollapsed, onClick }: NavItemProps) => (
+const NavItem = ({
+  href,
+  icon,
+  label,
+  isActive,
+  isCollapsed,
+  onClick,
+}: NavItemProps) => (
   <Link
     href={href}
     onClick={onClick}
     title={isCollapsed ? label : undefined}
     className={cn(
-      'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-      isCollapsed ? 'justify-center px-2' : '',
+      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+      isCollapsed ? "justify-center px-2" : "",
       isActive
-        ? 'bg-teal-50 text-teal-600'
-        : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'
+        ? "bg-teal-50 text-teal-600"
+        : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900",
     )}
   >
     <span className="flex-shrink-0">{icon}</span>
@@ -64,59 +80,59 @@ export const Sidebar = () => {
   const { isCollapsed, isOpen, toggleCollapsed, closeSidebar } = useSidebar();
 
   // ── Mejora 6: datos del usuario para mini-perfil ──
-  const [userName, setUserName] = useState('');
-  const [userRole, setUserRole] = useState('');
+  const [userName, setUserName] = useState("");
+  const [userRole, setUserRole] = useState("");
 
   useEffect(() => {
     const loadUser = () => {
-      const stored = localStorage.getItem('user');
+      const stored = getStoredUser();
       if (!stored) return;
-      try {
-        const parsed = JSON.parse(stored);
-        setUserName(parsed.name ?? '');
-        setUserRole(parsed.role ?? '');
-      } catch {
-        // JSON malformado — ignorar
-      }
+      setUserName(stored.name ?? "");
+      setUserRole(stored.role ?? "");
     };
     loadUser();
-    window.addEventListener('user:updated', loadUser);
-    return () => window.removeEventListener('user:updated', loadUser);
+    window.addEventListener("user:updated", loadUser);
+    return () => window.removeEventListener("user:updated", loadUser);
   }, []);
 
   const handleLogout = () => {
     AuthService.logout();
-    window.location.href = '/login';
+    window.location.href = "/login";
   };
 
   const handleNavClick = () => {
     closeSidebar();
   };
 
-  const isHuellaActive = pathname.startsWith('/huella-carbono');
-  const isSettingsActive = pathname.startsWith('/configuracion');
+  const isHuellaActive = pathname.startsWith("/huella-carbono");
+  const isSettingsActive = pathname.startsWith("/configuracion");
+  const visibleSettingsItems = getVisibleSettingsItems(hasPermission);
 
   // ── Mejora 1: icono teal cuando activo, zinc-400 cuando inactivo (hereda de NavItem) ──
   const iconClass = (active: boolean) =>
-    active ? 'text-teal-600' : 'text-zinc-400';
+    active ? "text-teal-600" : "text-zinc-400";
 
   return (
     <aside
       className={cn(
-        'h-screen bg-white border-r border-zinc-200 flex flex-col fixed left-0 top-0 overflow-y-auto z-40 transition-all duration-300',
-        isOpen ? 'translate-x-0' : '-translate-x-full',
-        'md:translate-x-0',
-        isCollapsed ? 'md:w-[72px]' : 'md:w-64',
-        'w-64',
+        "h-screen bg-white border-r border-zinc-200 flex flex-col fixed left-0 top-0 overflow-y-auto z-40 transition-all duration-300",
+        isOpen ? "translate-x-0" : "-translate-x-full",
+        "md:translate-x-0",
+        isCollapsed ? "md:w-[72px]" : "md:w-64",
+        "w-64",
       )}
     >
       {/* ── Logo + toggle ── */}
       <div className="h-16 border-b border-zinc-100 flex-shrink-0 flex items-center">
         {/* Desktop */}
-        <div className={cn(
-          "hidden md:flex items-center w-full",
-          isCollapsed ? "px-2 justify-center gap-1.5" : "px-4 justify-between"
-        )}>
+        <div
+          className={cn(
+            "hidden md:flex items-center w-full",
+            isCollapsed
+              ? "px-2 justify-center gap-1.5"
+              : "px-4 justify-between",
+          )}
+        >
           {isCollapsed ? (
             <>
               <img
@@ -164,9 +180,9 @@ export const Sidebar = () => {
         {/* ── Mejora 1+2: todos los ítems con teal activo ── */}
         <NavItem
           href="/"
-          icon={<Home size={18} className={iconClass(pathname === '/')} />}
+          icon={<Home size={18} className={iconClass(pathname === "/")} />}
           label="Inicio"
-          isActive={pathname === '/'}
+          isActive={pathname === "/"}
           isCollapsed={isCollapsed}
           onClick={handleNavClick}
         />
@@ -174,9 +190,14 @@ export const Sidebar = () => {
         {hasPermission(PermissionCode.VIEW_COMPANIES) && (
           <NavItem
             href="/empresas"
-            icon={<Building2 size={18} className={iconClass(pathname.startsWith('/empresas'))} />}
+            icon={
+              <Building2
+                size={18}
+                className={iconClass(pathname.startsWith("/empresas"))}
+              />
+            }
             label="Empresas"
-            isActive={pathname.startsWith('/empresas')}
+            isActive={pathname.startsWith("/empresas")}
             isCollapsed={isCollapsed}
             onClick={handleNavClick}
           />
@@ -186,9 +207,14 @@ export const Sidebar = () => {
           // ── Mejora 2: "Usuarios" ya no usa bg-zinc-900 text-white ──
           <NavItem
             href="/usuarios"
-            icon={<User size={18} className={iconClass(pathname.startsWith('/usuarios'))} />}
+            icon={
+              <User
+                size={18}
+                className={iconClass(pathname.startsWith("/usuarios"))}
+              />
+            }
             label="Usuarios"
-            isActive={pathname.startsWith('/usuarios')}
+            isActive={pathname.startsWith("/usuarios")}
             isCollapsed={isCollapsed}
             onClick={handleNavClick}
           />
@@ -197,15 +223,20 @@ export const Sidebar = () => {
         {hasPermission(PermissionCode.VIEW_ROLES) && (
           <NavItem
             href="/roles"
-            icon={<ShieldCheck size={18} className={iconClass(pathname.startsWith('/roles'))} />}
-            label="Roles y Permisos"
-            isActive={pathname.startsWith('/roles')}
+            icon={
+              <ShieldCheck
+                size={18}
+                className={iconClass(pathname.startsWith("/roles"))}
+              />
+            }
+            label="Roles"
+            isActive={pathname.startsWith("/roles")}
             isCollapsed={isCollapsed}
             onClick={handleNavClick}
           />
         )}
 
-        {/* Grupo: Huella de Carbono */}
+        {/* Grupo: Huella de carbono */}
         {(hasPermission(PermissionCode.VIEW_CARBON_FOOTPRINT) ||
           hasPermission(PermissionCode.VIEW_CARBON_FOOTPRINT_ANALYSIS)) && (
           <div className="space-y-1">
@@ -213,7 +244,7 @@ export const Sidebar = () => {
               <NavItem
                 href="/huella-carbono"
                 icon={<Leaf size={18} className={iconClass(isHuellaActive)} />}
-                label="Huella de Carbono"
+                label="Huella de carbono"
                 isActive={isHuellaActive}
                 isCollapsed={isCollapsed}
                 onClick={handleNavClick}
@@ -225,14 +256,14 @@ export const Sidebar = () => {
                   href="/huella-carbono"
                   onClick={handleNavClick}
                   className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                     isHuellaActive
-                      ? 'bg-teal-50/60 text-teal-600'
-                      : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'
+                      ? "bg-teal-50/60 text-teal-600"
+                      : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900",
                   )}
                 >
                   <Leaf size={18} className={iconClass(isHuellaActive)} />
-                  Huella de Carbono
+                  Huella de carbono
                   <ChevronRight size={14} className="ml-auto opacity-40" />
                 </Link>
 
@@ -242,45 +273,31 @@ export const Sidebar = () => {
                       href="/huella-carbono"
                       onClick={handleNavClick}
                       className={cn(
-                        'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                        pathname === '/huella-carbono' || pathname === '/huella-carbono/nueva'
-                          ? 'text-teal-600 bg-teal-50/50'
-                          : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
+                        "block px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                        pathname === "/huella-carbono" ||
+                          pathname === "/huella-carbono/nueva"
+                          ? "text-teal-600 bg-teal-50/50"
+                          : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50",
                       )}
                     >
-                      Emisiones de huella de carbono
+                      Actividades
                     </Link>
                   )}
 
-                  {hasPermission(PermissionCode.VIEW_CARBON_FOOTPRINT_ANALYSIS) && (
+                  {hasPermission(
+                    PermissionCode.VIEW_CARBON_FOOTPRINT_ANALYSIS,
+                  ) && (
                     <Link
                       href="/huella-carbono/analisis"
                       onClick={handleNavClick}
                       className={cn(
-                        'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                        pathname.startsWith('/huella-carbono/analisis') &&
-                          !pathname.includes('/parametros') &&
-                          !pathname.startsWith('/huella-carbono/analisis-v2')
-                          ? 'text-teal-600 bg-teal-50/50'
-                          : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
+                        "block px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                        pathname.startsWith("/huella-carbono/analisis")
+                          ? "text-teal-600 bg-teal-50/50"
+                          : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50",
                       )}
                     >
-                      Análisis huella de carbono
-                    </Link>
-                  )}
-
-                  {hasPermission(PermissionCode.VIEW_CARBON_FOOTPRINT_ANALYSIS) && (
-                    <Link
-                      href="/huella-carbono/analisis-v2"
-                      onClick={handleNavClick}
-                      className={cn(
-                        'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                        pathname.startsWith('/huella-carbono/analisis-v2')
-                          ? 'text-teal-600 bg-teal-50/50'
-                          : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
-                      )}
-                    >
-                      Análisis V2
+                      Análisis
                     </Link>
                   )}
                 </div>
@@ -290,14 +307,14 @@ export const Sidebar = () => {
         )}
 
         {/* Grupo: Configuración */}
-        {(hasPermission(PermissionCode.MANAGE_GASES) ||
-          hasPermission(PermissionCode.MANAGE_EMISSION_SOURCES) ||
-          hasPermission(PermissionCode.MANAGE_EMISSION_SOURCE_CATEGORIES)) && (
+        {visibleSettingsItems.length > 0 && (
           <div className="space-y-1">
             {isCollapsed ? (
               <NavItem
-                href="/configuracion/fuentes-emision"
-                icon={<Settings size={18} className={iconClass(isSettingsActive)} />}
+                href={visibleSettingsItems[0].href}
+                icon={
+                  <Settings size={18} className={iconClass(isSettingsActive)} />
+                }
                 label="Configuración"
                 isActive={isSettingsActive}
                 isCollapsed={isCollapsed}
@@ -307,13 +324,13 @@ export const Sidebar = () => {
               <>
                 {/* ── Mejora 4: cabecera de grupo como Link ── */}
                 <Link
-                  href="/configuracion/fuentes-emision"
+                  href={visibleSettingsItems[0].href}
                   onClick={handleNavClick}
                   className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                     isSettingsActive
-                      ? 'bg-teal-50/60 text-teal-600'
-                      : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'
+                      ? "bg-teal-50/60 text-teal-600"
+                      : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900",
                   )}
                 >
                   <Settings size={18} className={iconClass(isSettingsActive)} />
@@ -322,65 +339,21 @@ export const Sidebar = () => {
                 </Link>
 
                 <div className="pl-8 pr-2 space-y-1">
-                  {hasPermission(PermissionCode.MANAGE_EMISSION_SOURCES) && (
+                  {visibleSettingsItems.map((item) => (
                     <Link
-                      href="/configuracion/fuentes-emision"
+                      key={item.href}
+                      href={item.href}
                       onClick={handleNavClick}
                       className={cn(
-                        'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                        pathname === '/configuracion/fuentes-emision'
-                          ? 'text-teal-600 bg-teal-50/50'
-                          : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
+                        "block px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                        pathname === item.href
+                          ? "text-teal-600 bg-teal-50/50"
+                          : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50",
                       )}
                     >
-                      Fuentes de Emisión
+                      {item.label}
                     </Link>
-                  )}
-
-                  {hasPermission(PermissionCode.MANAGE_EMISSION_SOURCE_CATEGORIES) && (
-                    <Link
-                      href="/configuracion/categorias-fuentes"
-                      onClick={handleNavClick}
-                      className={cn(
-                        'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                        pathname === '/configuracion/categorias-fuentes'
-                          ? 'text-teal-600 bg-teal-50/50'
-                          : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
-                      )}
-                    >
-                      Categorías de Fuentes
-                    </Link>
-                  )}
-
-                  {hasPermission(PermissionCode.MANAGE_EMISSION_SOURCES) && (
-                    <Link
-                      href="/configuracion/unidades-medida"
-                      onClick={handleNavClick}
-                      className={cn(
-                        'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                        pathname === '/configuracion/unidades-medida'
-                          ? 'text-teal-600 bg-teal-50/50'
-                          : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
-                      )}
-                    >
-                      Unidades de Medida
-                    </Link>
-                  )}
-
-                  {hasPermission(PermissionCode.MANAGE_GASES) && (
-                    <Link
-                      href="/configuracion/gases"
-                      onClick={handleNavClick}
-                      className={cn(
-                        'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                        pathname === '/configuracion/gases'
-                          ? 'text-teal-600 bg-teal-50/50'
-                          : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
-                      )}
-                    >
-                      Gases de Efecto Invernadero
-                    </Link>
-                  )}
+                  ))}
                 </div>
               </>
             )}
@@ -390,17 +363,23 @@ export const Sidebar = () => {
 
       {/* ── Mejora 6: mini-perfil de usuario (útil en mobile) ── */}
       {userName && (
-        <div className={cn(
-          'border-t border-zinc-100 px-3 py-3',
-          isCollapsed ? 'flex justify-center' : 'flex items-center gap-3'
-        )}>
+        <div
+          className={cn(
+            "border-t border-zinc-100 px-3 py-3",
+            isCollapsed ? "flex justify-center" : "flex items-center gap-3",
+          )}
+        >
           <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-black flex-shrink-0 border border-teal-200">
             {getInitials(userName)}
           </div>
           {!isCollapsed && (
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-zinc-900 truncate leading-tight">{userName}</p>
-              <p className="text-[10px] text-zinc-500 truncate">{userRole || 'Usuario'}</p>
+              <p className="text-xs font-bold text-zinc-900 truncate leading-tight">
+                {userName}
+              </p>
+              <p className="text-[10px] text-zinc-500 truncate">
+                {userRole || "Usuario"}
+              </p>
             </div>
           )}
         </div>
@@ -410,14 +389,17 @@ export const Sidebar = () => {
       <div className="p-3 border-t border-zinc-100">
         <button
           onClick={handleLogout}
-          title={isCollapsed ? 'Cerrar Sesión' : undefined}
+          title={isCollapsed ? "Cerrar sesión" : undefined}
           className={cn(
-            'group w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-zinc-600 hover:bg-red-50 hover:text-red-600 transition-colors',
-            isCollapsed ? 'justify-center px-2' : ''
+            "group w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-zinc-600 hover:bg-red-50 hover:text-red-600 transition-colors",
+            isCollapsed ? "justify-center px-2" : "",
           )}
         >
-          <LogOut size={18} className="text-zinc-400 group-hover:text-red-600 flex-shrink-0 transition-colors" />
-          {!isCollapsed && <span>Cerrar Sesión</span>}
+          <LogOut
+            size={18}
+            className="text-zinc-400 group-hover:text-red-600 flex-shrink-0 transition-colors"
+          />
+          {!isCollapsed && <span>Cerrar sesión</span>}
         </button>
       </div>
     </aside>

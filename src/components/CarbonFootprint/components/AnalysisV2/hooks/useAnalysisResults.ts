@@ -1,10 +1,21 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { CarbonFootprintAnalysisService } from '../../../services/carbonFootprintAnalysis.service';
-import { CarbonFootprintService } from '../../../services/carbonFootprint.service';
-import { EmissionFactorsService, EmissionSubsourcesService } from '../../../services/catalogs.service';
-import { ApiCarbonFootprint, ApiCarbonFootprintAnalysis, ApiCommercialUnit, ApiEmissionFactor, FACTOR_MASS_UNIT_TO_KG, FactorMassUnit } from '../../../types';
+import { useState, useEffect, useCallback } from "react";
+import { CarbonFootprintAnalysisService } from "../../../services/carbonFootprintAnalysis.service";
+import { CarbonFootprintService } from "../../../services/carbonFootprint.service";
+import {
+  EmissionFactorsService,
+  EmissionSubsourcesService,
+} from "../../../services/catalogs.service";
+import {
+  ApiCarbonFootprint,
+  ApiCarbonFootprintAnalysis,
+  ApiCommercialUnit,
+  ApiEmissionFactor,
+  FACTOR_MASS_UNIT_TO_KG,
+  FactorMassUnit,
+} from "../../../types";
+import { getActiveCompany } from "@/shared/lib/session";
 
 export interface FactorResult {
   factorId: string;
@@ -13,8 +24,8 @@ export interface FactorResult {
   gwp: number;
   factorValue: number;
   unitSymbol: string;
-  gasTonnes: number;  // raw gas mass: quantity × factor / 1000
-  tco2e: number;      // gasTonnes × gwp
+  gasTonnes: number; // raw gas mass: quantity × factor / 1000
+  tco2e: number; // gasTonnes × gwp
   recordCount: number;
   percentage: number;
 }
@@ -26,6 +37,8 @@ export interface SourceResult {
   percentage: number;
   recordCount: number;
   coveredRecordCount: number;
+  totalQuantity: number;
+  unitSymbol: string;
   factors: FactorResult[];
 }
 
@@ -60,18 +73,6 @@ export interface AnalysisResultsSummary {
   recordIdsWithFactors: Set<string>;
 }
 
-function getCompanyNameFromSession(): string {
-  if (typeof window === 'undefined') return '';
-  try {
-    const stored = localStorage.getItem('user');
-    if (!stored) return '';
-    const parsed = JSON.parse(stored) as { company?: { name: string } | null };
-    return parsed.company?.name ?? '';
-  } catch {
-    return '';
-  }
-}
-
 interface FactorAccum {
   gasName: string;
   formula: string;
@@ -88,6 +89,8 @@ interface SourceAccum {
   tco2e: number;
   count: number;
   coveredCount: number;
+  totalQuantity: number;
+  unitSymbol: string;
   factors: Map<string, FactorAccum>;
 }
 
@@ -128,7 +131,7 @@ export function useAnalysisResults(analysisId: string) {
       if (records.length === 0) {
         setSummary({
           analysis,
-          companyName: getCompanyNameFromSession(),
+          companyName: getActiveCompany()?.name ?? "",
           totalTco2e: 0,
           groups: [],
           recordCount: 0,
@@ -142,24 +145,38 @@ export function useAnalysisResults(analysisId: string) {
 
       // Collect unique subsource and category IDs
       const subsourceIds = [
-        ...new Set(records.filter(r => r.emissionSubsourceId).map(r => r.emissionSubsourceId!)),
+        ...new Set(
+          records
+            .filter((r) => r.emissionSubsourceId)
+            .map((r) => r.emissionSubsourceId!),
+        ),
       ];
       const categoryIds = [
-        ...new Set(records.filter(r => r.emissionSourceCategoryId).map(r => r.emissionSourceCategoryId!)),
+        ...new Set(
+          records
+            .filter((r) => r.emissionSourceCategoryId)
+            .map((r) => r.emissionSourceCategoryId!),
+        ),
       ];
 
       // Fetch commercial units for each subsource so we can resolve commercial unit
       // quantities to base units before matching emission factors.
       // Key: displaySymbol (lowercase) because backend returns emissionUnitId as null.
       const commercialUnitSettled = await Promise.allSettled(
-        subsourceIds.map(id =>
-          EmissionSubsourcesService.getSourceUnits(id).then(units => ({ id, units }))
-        )
+        subsourceIds.map((id) =>
+          EmissionSubsourcesService.getSourceUnits(id).then((units) => ({
+            id,
+            units,
+          })),
+        ),
       );
       // subsourceId → Map<displaySymbol_lowercase, ApiCommercialUnit>
-      const commercialUnitsBySubsource = new Map<string, Map<string, ApiCommercialUnit>>();
+      const commercialUnitsBySubsource = new Map<
+        string,
+        Map<string, ApiCommercialUnit>
+      >();
       for (const result of commercialUnitSettled) {
-        if (result.status === 'fulfilled') {
+        if (result.status === "fulfilled") {
           const { id, units } = result.value;
           const unitMap = new Map<string, ApiCommercialUnit>();
           for (const unit of units) {
@@ -174,16 +191,20 @@ export function useAnalysisResults(analysisId: string) {
       // subsource ID than the one referenced by the records (e.g. duplicate sources)
       const [subsourceResults, categoryResults] = await Promise.all([
         Promise.all(
-          subsourceIds.map(async id => ({
+          subsourceIds.map(async (id) => ({
             id,
-            factors: await EmissionFactorsService.getAll({ emissionSourceId: id }),
-          }))
+            factors: await EmissionFactorsService.getAll({
+              emissionSourceId: id,
+            }),
+          })),
         ),
         Promise.all(
-          categoryIds.map(async id => ({
+          categoryIds.map(async (id) => ({
             id,
-            factors: await EmissionFactorsService.getAll({ emissionSourceCategoryId: id }),
-          }))
+            factors: await EmissionFactorsService.getAll({
+              emissionSourceCategoryId: id,
+            }),
+          })),
         ),
       ]);
 
@@ -206,15 +227,16 @@ export function useAnalysisResults(analysisId: string) {
       for (const record of records) {
         const subsourceId = record.emissionSubsourceId;
         const categoryId = record.emissionSourceCategoryId;
-        if (!subsourceId || !categoryId || processedSubsources.has(subsourceId)) continue;
+        if (!subsourceId || !categoryId || processedSubsources.has(subsourceId))
+          continue;
         processedSubsources.add(subsourceId);
 
         const existing = factorsBySubsource.get(subsourceId) ?? [];
         const catFactors = categoryFactorMap.get(categoryId) ?? [];
         if (catFactors.length === 0) continue;
 
-        const seenIds = new Set(existing.map(f => f.id));
-        const seenGasIds = new Set(existing.map(f => f.gasId));
+        const seenIds = new Set(existing.map((f) => f.id));
+        const seenGasIds = new Set(existing.map((f) => f.gasId));
         const supplemental: ApiEmissionFactor[] = [];
         for (const f of catFactors) {
           if (seenIds.has(f.id) || seenGasIds.has(f.gasId)) continue;
@@ -225,7 +247,6 @@ export function useAnalysisResults(analysisId: string) {
           factorsBySubsource.set(subsourceId, [...existing, ...supplemental]);
         }
       }
-
 
       const groupMap = new Map<string, GroupAccum>();
       const recordIdsWithFactors = new Set<string>();
@@ -246,9 +267,11 @@ export function useAnalysisResults(analysisId: string) {
         // displaySymbol (lowercase). Backend returns emissionUnitId as null in commercial
         // unit objects, so symbol-based lookup is the only reliable approach.
         const subsourceUnitMap = record.emissionSubsourceId
-          ? (commercialUnitsBySubsource.get(record.emissionSubsourceId) ?? new Map<string, ApiCommercialUnit>())
+          ? (commercialUnitsBySubsource.get(record.emissionSubsourceId) ??
+            new Map<string, ApiCommercialUnit>())
           : new Map<string, ApiCommercialUnit>();
-        const recordSymbolKey = record.emissionUnit?.symbol?.toLowerCase() ?? '';
+        const recordSymbolKey =
+          record.emissionUnit?.symbol?.toLowerCase() ?? "";
         const commercialUnit = recordSymbolKey
           ? (subsourceUnitMap.get(recordSymbolKey) ?? null)
           : null;
@@ -267,10 +290,10 @@ export function useAnalysisResults(analysisId: string) {
         // Match factors by unit symbol (robust against different DB IDs for the same unit)
         // Falls back to ID comparison, then to all factors if no unit info available
         const factors = effectiveUnitSymbol
-          ? allSubsourceFactors.filter(f =>
+          ? allSubsourceFactors.filter((f) =>
               f.emissionUnit?.symbol
                 ? f.emissionUnit.symbol === effectiveUnitSymbol
-                : f.emissionUnitId === record.emissionUnitId
+                : f.emissionUnitId === record.emissionUnitId,
             )
           : allSubsourceFactors;
 
@@ -278,9 +301,15 @@ export function useAnalysisResults(analysisId: string) {
         let recordTco2e = 0;
         for (const f of factors) {
           // Convert factor to kg using factorMassUnit before computing tCO₂e
-          const factorInKg = f.factor * (FACTOR_MASS_UNIT_TO_KG[(f.factorMassUnit ?? 'kg') as FactorMassUnit] ?? 1);
-          // tco2e = effectiveQuantity (in base unit) × factorInKg × gwp / 1000 (kg → tonnes)
-          recordTco2e += (effectiveQuantity * factorInKg * f.gwp) / 1000;
+          const factorInKg =
+            f.factor *
+            (FACTOR_MASS_UNIT_TO_KG[
+              (f.factorMassUnit ?? "kg") as FactorMassUnit
+            ] ?? 1);
+          const coeff = f.coefficient ?? 1;
+          // tco2e = effectiveQuantity × factorInKg × coefficient × gwp / 1000 (kg → tonnes)
+          recordTco2e +=
+            (effectiveQuantity * factorInKg * coeff * f.gwp) / 1000;
         }
         if (factors.length > 0) {
           recordsWithFactors++;
@@ -288,11 +317,12 @@ export function useAnalysisResults(analysisId: string) {
         }
         totalTco2e += recordTco2e;
 
-        const groupId = record.emissionGroupId ?? 'sin-grupo';
-        const groupName = record.emissionGroup?.name ?? 'Sin grupo';
-        const groupCode = record.emissionGroup?.code ?? '';
-        const categoryId = record.emissionSourceCategoryId ?? 'sin-categoria';
-        const categoryName = record.emissionSourceCategory?.name ?? 'Sin categoría';
+        const groupId = record.emissionGroupId ?? "sin-grupo";
+        const groupName = record.emissionGroup?.name ?? "Sin grupo";
+        const groupCode = record.emissionGroup?.code ?? "";
+        const categoryId = record.emissionSourceCategoryId ?? "sin-categoria";
+        const categoryName =
+          record.emissionSourceCategory?.name ?? "Sin tipo de fuente";
 
         if (!groupMap.has(groupId)) {
           groupMap.set(groupId, {
@@ -322,35 +352,48 @@ export function useAnalysisResults(analysisId: string) {
         if (factors.length > 0) cat.coveredCount++;
 
         // Accumulate per emission source (subsource) within this category
-        const sourceId = record.emissionSubsourceId ?? 'sin-fuente';
-        const sourceName = record.emissionSource?.name ?? 'Sin fuente';
+        const sourceId = record.emissionSubsourceId ?? "sin-fuente";
+        const sourceName = record.emissionSource?.name ?? "Sin fuente";
         if (!cat.sources.has(sourceId)) {
           cat.sources.set(sourceId, {
             name: sourceName,
             tco2e: 0,
             count: 0,
             coveredCount: 0,
+            totalQuantity: 0,
+            unitSymbol: "",
             factors: new Map(),
           });
         }
         const src = cat.sources.get(sourceId)!;
         src.tco2e += recordTco2e;
         src.count++;
+        src.totalQuantity += record.quantity;
+        if (!src.unitSymbol) src.unitSymbol = record.emissionUnit?.symbol ?? "";
         if (factors.length > 0) src.coveredCount++;
 
         // Accumulate per-factor within this source
         for (const f of factors) {
-          const factorInKg = f.factor * (FACTOR_MASS_UNIT_TO_KG[(f.factorMassUnit ?? 'kg') as FactorMassUnit] ?? 1);
-          const rawGas = (effectiveQuantity * factorInKg) / 1000;
+          const factorInKg =
+            f.factor *
+            (FACTOR_MASS_UNIT_TO_KG[
+              (f.factorMassUnit ?? "kg") as FactorMassUnit
+            ] ?? 1);
+          const coeff = f.coefficient ?? 1;
+          const rawGas = (effectiveQuantity * factorInKg * coeff) / 1000;
           const contribution = rawGas * f.gwp;
           if (!src.factors.has(f.id)) {
-            const displayFactor = f.factor * (FACTOR_MASS_UNIT_TO_KG[(f.factorMassUnit ?? 'kg') as FactorMassUnit] ?? 1);
+            const displayFactor =
+              f.factor *
+              (FACTOR_MASS_UNIT_TO_KG[
+                (f.factorMassUnit ?? "kg") as FactorMassUnit
+              ] ?? 1);
             src.factors.set(f.id, {
-              gasName: f.gas?.chemicalName ?? 'Gas',
-              formula: f.gas?.formula ?? '',
+              gasName: f.gas?.chemicalName ?? "Gas",
+              formula: f.gas?.formula ?? "",
               gwp: f.gwp,
               factorValue: displayFactor,
-              unitSymbol: f.emissionUnit?.symbol ?? '',
+              unitSymbol: f.emissionUnit?.symbol ?? "",
               gasTonnes: 0,
               tco2e: 0,
               count: 0,
@@ -365,7 +408,7 @@ export function useAnalysisResults(analysisId: string) {
 
       const groups: GroupedResult[] = Array.from(groupMap.values())
         .sort((a, b) => b.tco2e - a.tco2e)
-        .map(g => ({
+        .map((g) => ({
           groupId: g.groupId,
           groupName: g.groupName,
           groupCode: g.groupCode,
@@ -387,6 +430,8 @@ export function useAnalysisResults(analysisId: string) {
                   percentage: totalTco2e > 0 ? (s.tco2e / totalTco2e) * 100 : 0,
                   recordCount: s.count,
                   coveredRecordCount: s.coveredCount,
+                  totalQuantity: s.totalQuantity,
+                  unitSymbol: s.unitSymbol,
                   factors: Array.from(s.factors.entries())
                     .map(([factorId, fa]) => ({
                       factorId,
@@ -421,7 +466,7 @@ export function useAnalysisResults(analysisId: string) {
 
       setSummary({
         analysis,
-        companyName: getCompanyNameFromSession(),
+        companyName: getActiveCompany()?.name ?? "",
         totalTco2e,
         groups,
         recordCount: processedRecords,
@@ -431,7 +476,9 @@ export function useAnalysisResults(analysisId: string) {
         recordIdsWithFactors,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al calcular resultados');
+      setError(
+        err instanceof Error ? err.message : "Error al calcular resultados",
+      );
     } finally {
       setLoading(false);
     }

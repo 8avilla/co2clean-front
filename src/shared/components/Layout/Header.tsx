@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from "react";
 import {
   User,
   ChevronDown,
@@ -9,34 +9,41 @@ import {
   Building,
   Loader2,
   Menu,
-} from 'lucide-react';
-import Link from 'next/link';
-import { AuthService } from '@/components/Auth/services/auth.service';
-import Cookies from 'js-cookie';
-import { toast } from 'sonner';
-import { useSidebar } from './SidebarContext';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+} from "lucide-react";
+import Link from "next/link";
+import { AuthService } from "@/components/Auth/services/auth.service";
+import Cookies from "js-cookie";
+import { toast } from "sonner";
+import { useSidebar } from "./SidebarContext";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+import { getStoredUser } from "@/shared/lib/session";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 const getInitials = (name: string) =>
-  name.trim().split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+  name
+    .trim()
+    .split(" ")
+    .map((w) => w[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
 const AVATAR_COLORS = [
-  'bg-teal-100 text-teal-700 border-teal-200',
-  'bg-blue-100 text-blue-700 border-blue-200',
-  'bg-violet-100 text-violet-700 border-violet-200',
-  'bg-amber-100 text-amber-700 border-amber-200',
-  'bg-rose-100 text-rose-700 border-rose-200',
-  'bg-emerald-100 text-emerald-700 border-emerald-200',
+  "bg-teal-100 text-teal-700 border-teal-200",
+  "bg-blue-100 text-blue-700 border-blue-200",
+  "bg-violet-100 text-violet-700 border-violet-200",
+  "bg-amber-100 text-amber-700 border-amber-200",
+  "bg-rose-100 text-rose-700 border-rose-200",
+  "bg-emerald-100 text-emerald-700 border-emerald-200",
 ];
 
 const getAvatarColor = (name: string) =>
   AVATAR_COLORS[(name.charCodeAt(0) || 0) % AVATAR_COLORS.length];
-
 
 export const Header = () => {
   const { toggleSidebar } = useSidebar();
@@ -58,19 +65,19 @@ export const Header = () => {
     companyLogo?: string;
     companies: Array<{ id: string; name: string }>;
   }>({
-    id: '',
-    name: '',
-    email: '',
-    role: '',
-    companyName: '',
-    companyId: '',
-    companyLogo: '',
-    companies: []
+    id: "",
+    name: "",
+    email: "",
+    role: "",
+    companyName: "",
+    companyId: "",
+    companyLogo: "",
+    companies: [],
   });
 
   const handleLogout = () => {
     AuthService.logout();
-    window.location.href = '/login';
+    window.location.href = "/login";
   };
 
   const handleSwitchCompany = async (companyId: string) => {
@@ -79,19 +86,21 @@ export const Header = () => {
     try {
       const response = await AuthService.switchCompany(companyId);
 
-      Cookies.set('auth-token', response.token, {
+      Cookies.set("auth-token", response.token, {
         expires: 7,
         secure: false,
-        sameSite: 'strict',
+        sameSite: "strict",
       });
 
-      localStorage.setItem('user', JSON.stringify(response.user));
-      window.dispatchEvent(new Event('user:updated'));
+      localStorage.setItem("user", JSON.stringify(response.user));
+      window.dispatchEvent(new Event("user:updated"));
 
       // Full reload so all client components re-fetch with the new company context
       window.location.reload();
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Error al cambiar de empresa');
+      toast.error(
+        e instanceof Error ? e.message : "Error al cambiar de empresa",
+      );
     } finally {
       setIsSwitching(false);
       setIsCompanyOpen(false);
@@ -101,41 +110,42 @@ export const Header = () => {
   // ── Mejora 11+12: carga de usuario separada, sin datos hardcodeados ni console.error ──
   useEffect(() => {
     const loadUser = () => {
-      const stored = localStorage.getItem('user');
+      const stored = getStoredUser();
       if (!stored) return;
-      try {
-        const parsed = JSON.parse(stored);
-        setUser({
-          id: parsed.id ?? '',
-          name: parsed.name ?? '',
-          email: parsed.email ?? '',
-          role: parsed.role ?? '',
-          companyName: parsed.company?.name ?? '',
-          companyId: parsed.company?.id ?? '',
-          companyLogo: parsed.company?.logoUrl ?? '',
-          companies: parsed.companies ?? [],
-        });
-      } catch {
-        // JSON malformado en localStorage — ignorar
-      }
+      setUser({
+        id: stored.id ?? "",
+        name: stored.name ?? "",
+        email: stored.email ?? "",
+        role: stored.role ?? "",
+        companyName: stored.company?.name ?? "",
+        companyId: stored.company?.id ?? "",
+        companyLogo: stored.company?.logoUrl ?? "",
+        companies: stored.companies ?? [],
+      });
     };
     loadUser();
-    window.addEventListener('user:updated', loadUser);
-    return () => window.removeEventListener('user:updated', loadUser);
+    window.addEventListener("user:updated", loadUser);
+    return () => window.removeEventListener("user:updated", loadUser);
   }, []);
 
   // Click-outside handler separado
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsProfileOpen(false);
       }
-      if (companyDropdownRef.current && !companyDropdownRef.current.contains(event.target as Node)) {
+      if (
+        companyDropdownRef.current &&
+        !companyDropdownRef.current.contains(event.target as Node)
+      ) {
         setIsCompanyOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   return (
@@ -162,18 +172,27 @@ export const Header = () => {
               {isSwitching ? (
                 <Loader2 size={16} className="animate-spin text-zinc-500" />
               ) : user.companyLogo ? (
-                <img src={user.companyLogo} alt="Logo Empresa" className="h-8 w-auto object-contain rounded-sm" />
+                <img
+                  src={user.companyLogo}
+                  alt="Logo Empresa"
+                  className="h-8 w-auto object-contain rounded-sm"
+                />
               ) : (
                 <Building size={16} className="text-zinc-500" />
               )}
               <span>{user.companyName}</span>
-              <ChevronDown size={16} className={`text-zinc-400 transition-transform ${isCompanyOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown
+                size={16}
+                className={`text-zinc-400 transition-transform ${isCompanyOpen ? "rotate-180" : ""}`}
+              />
             </button>
 
             {isCompanyOpen && (
               <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-zinc-200 py-1 z-50 animate-in fade-in zoom-in-95 duration-200">
                 <div className="px-3 py-2 border-b border-zinc-100">
-                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Mis Empresas</span>
+                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                    Mis Empresas
+                  </span>
                 </div>
                 <div className="max-h-60 overflow-y-auto">
                   {user.companies.map((c) => (
@@ -182,8 +201,8 @@ export const Header = () => {
                       onClick={() => handleSwitchCompany(c.id)}
                       className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between font-medium ${
                         c.id === user.companyId
-                          ? 'bg-teal-50 text-teal-700 font-bold border-r-2 border-teal-600'
-                          : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'
+                          ? "bg-teal-50 text-teal-700 font-bold border-r-2 border-teal-600"
+                          : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
                       }`}
                     >
                       <span>{c.name}</span>
@@ -199,7 +218,11 @@ export const Header = () => {
         ) : (
           <div className="flex items-center gap-1.5 text-zinc-500 text-sm font-semibold">
             {user.companyLogo ? (
-              <img src={user.companyLogo} alt="Logo Empresa" className="h-8 w-auto object-contain rounded-sm" />
+              <img
+                src={user.companyLogo}
+                alt="Logo Empresa"
+                className="h-8 w-auto object-contain rounded-sm"
+              />
             ) : (
               <Building size={16} className="text-zinc-400" />
             )}
@@ -214,16 +237,29 @@ export const Header = () => {
             className="flex items-center gap-3 p-1 px-3 rounded-full hover:bg-zinc-50 transition-all border border-transparent hover:border-zinc-200"
           >
             <div className="hidden lg:flex flex-col text-right">
-              <span className="text-sm font-bold text-zinc-900 leading-tight">{user.name || 'Usuario'}</span>
-              <span className="text-xs text-zinc-500 font-medium">{user.role}</span>
+              <span className="text-sm font-bold text-zinc-900 leading-tight">
+                {user.name || "Usuario"}
+              </span>
+              <span className="text-xs text-zinc-500 font-medium">
+                {user.role}
+              </span>
             </div>
-            <div className={cn(
-              "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black border flex-shrink-0",
-              getAvatarColor(user.name || 'Usuario')
-            )}>
-              {getInitials(user.name || 'Usuario')}
+            <div
+              className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black border flex-shrink-0",
+                getAvatarColor(user.name || "Usuario"),
+              )}
+            >
+              {getInitials(user.name || "Usuario")}
             </div>
-            <ChevronDown size={16} className={isProfileOpen ? "rotate-180 transition-transform" : "transition-transform"} />
+            <ChevronDown
+              size={16}
+              className={
+                isProfileOpen
+                  ? "rotate-180 transition-transform"
+                  : "transition-transform"
+              }
+            />
           </button>
 
           {/* Dropdown Menu */}
@@ -231,14 +267,18 @@ export const Header = () => {
             <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-zinc-200 py-2 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
               {/* User Info Section */}
               <div className="px-4 py-4 border-b border-zinc-100 flex items-center gap-4">
-                <div className={cn(
-                  "w-12 h-12 rounded-full flex items-center justify-center text-sm font-black border flex-shrink-0",
-                  getAvatarColor(user.name || 'Usuario')
-                )}>
-                  {getInitials(user.name || 'Usuario')}
+                <div
+                  className={cn(
+                    "w-12 h-12 rounded-full flex items-center justify-center text-sm font-black border flex-shrink-0",
+                    getAvatarColor(user.name || "Usuario"),
+                  )}
+                >
+                  {getInitials(user.name || "Usuario")}
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-bold text-zinc-900 leading-tight">{user.name || 'Usuario'}</span>
+                  <span className="font-bold text-zinc-900 leading-tight">
+                    {user.name || "Usuario"}
+                  </span>
                   <span className="text-sm text-zinc-500">{user.email}</span>
                 </div>
               </div>
@@ -261,7 +301,7 @@ export const Header = () => {
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-zinc-600 hover:bg-red-50 hover:text-red-600 transition-colors"
                 >
                   <LogOut size={18} />
-                  Cerrar Sesión
+                  Cerrar sesión
                 </button>
               </div>
             </div>

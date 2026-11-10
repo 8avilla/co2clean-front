@@ -1,20 +1,43 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
+import { Plus, Building2, RefreshCw, X, AlertCircle } from "lucide-react";
+import { ApiCompany } from "../types";
+import { CompanyService } from "../services/company.service";
+import { toast } from "sonner";
+import { usePermission } from "@/shared/hooks/usePermission";
+import { PermissionCode } from "@/shared/constants/permissions";
+import { confirmDeleteWithImpact } from "@/shared/lib/confirm-delete-with-impact";
+import { escapeHtml } from "@/shared/lib/html";
+import { PageHeader } from "@/shared/components/Common/PageHeader";
+import { SearchInput } from "@/shared/components/Common/SearchInput";
+import { CompanyAvatar } from "./CompanyAvatar";
+import { RowActions } from "@/shared/components/Common/RowActions";
+import { SortableHeader } from "@/shared/components/Common/SortableHeader";
+import { Pagination } from "@/shared/components/Common/Pagination";
+import { nextSortState } from "@/shared/lib/list-utils";
+import { HeadquartersBadge } from "./HeadquartersBadge";
 import {
-  Plus, Search, Edit2, Trash2, Building2,
-  ChevronLeft, ChevronRight, RefreshCw, X,
-} from 'lucide-react';
-import { ApiCompany } from '../types';
-import { CompanyService } from '../services/company.service';
-import { toast } from 'sonner';
-import { usePermission } from '@/shared/hooks/usePermission';
-import { PermissionCode } from '@/shared/constants/permissions';
+  CompanyListItem,
+  CompanySortKey,
+  SortDirection,
+  countHeadquartersByCompany,
+  matchesCompanySearch,
+  sortCompanies,
+} from "../utils/company-list.utils";
+import { buildDeletionWarningHtml } from "../utils/deletion-warning";
+import { buttonClass } from "@/shared/components/Common/button-styles";
 
 const PAGE_SIZE = 10;
 
-// ── Mejora 2: Empty state rico con CTA y distinción ──
+const formatLocation = (company: ApiCompany): string => {
+  const municipality = company.municipality?.name;
+  const department = company.department?.name;
+  if (!municipality && !department) return "—";
+  return [municipality, department].filter(Boolean).join(", ");
+};
+
 const CompanyEmptyState = ({
   hasSearch,
   onClear,
@@ -30,12 +53,12 @@ const CompanyEmptyState = ({
     </div>
     <div>
       <p className="font-semibold text-zinc-900 text-sm">
-        {hasSearch ? 'Sin resultados' : 'Sin empresas registradas'}
+        {hasSearch ? "Sin resultados" : "Sin empresas registradas"}
       </p>
       <p className="text-xs text-zinc-400 mt-1">
         {hasSearch
-          ? 'Prueba con otro nombre o NIT.'
-          : 'Agrega la primera empresa para comenzar.'}
+          ? "Prueba con otro nombre, NIT o correo."
+          : "Agrega la primera empresa para comenzar."}
       </p>
     </div>
     {hasSearch ? (
@@ -45,284 +68,373 @@ const CompanyEmptyState = ({
       >
         <X size={12} /> Limpiar búsqueda
       </button>
-    ) : canCreate && (
-      <Link
-        href="/empresas/nueva"
-        className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-bold hover:bg-teal-700 transition-colors"
-      >
-        <Plus size={15} /> Nueva Empresa
-      </Link>
+    ) : (
+      canCreate && (
+        <Link
+          href="/empresas/nueva"
+          className={buttonClass()}
+        >
+          <Plus size={15} /> Nueva empresa
+        </Link>
+      )
     )}
   </div>
 );
 
 export const CompanyList = () => {
-  const [companies, setCompanies] = useState<ApiCompany[]>([]);
+  const [companies, setCompanies] = useState<CompanyListItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [hasLoadError, setHasLoadError] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
+  const [sortKey, setSortKey] = useState<CompanySortKey>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const { hasPermission } = usePermission();
 
-  // ── Mejora 12: useCallback para evitar warning exhaustive-deps ──
+  const canCreate = hasPermission(PermissionCode.CREATE_COMPANIES);
+  const canUpdate = hasPermission(PermissionCode.UPDATE_COMPANIES);
+  const canDelete = hasPermission(PermissionCode.DELETE_COMPANIES);
+
   const fetchCompanies = useCallback(async () => {
     setLoading(true);
+    setHasLoadError(false);
     try {
-      const data = await CompanyService.getCompanies();
-      setCompanies(data);
+      const [companyData, headquarters] = await Promise.all([
+        CompanyService.getCompanies(),
+        CompanyService.getHeadquarters(),
+      ]);
+      const counts = countHeadquartersByCompany(headquarters);
+      setCompanies(
+        companyData.map((company) => ({
+          ...company,
+          headquartersCount: counts.get(company.id) ?? 0,
+        })),
+      );
     } catch {
-      toast.error('Error al cargar las empresas');
+      setHasLoadError(true);
+      toast.error("Error al cargar las empresas");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
+  useEffect(() => {
+    fetchCompanies();
+  }, [fetchCompanies]);
 
-  const handleDelete = async (id: string) => {
-    if (confirm('¿Estás seguro de eliminar esta empresa?')) {
-      try {
-        await CompanyService.deleteCompany(id);
-        toast.success('Empresa eliminada exitosamente');
-        fetchCompanies();
-      } catch (err) {
-        // ── Mejora 12: error usado correctamente ──
-        toast.error(err instanceof Error ? err.message : 'Error al eliminar la empresa');
-      }
+  const handleDelete = async (company: CompanyListItem) => {
+    const confirmed = await confirmDeleteWithImpact({
+      title: "¿Eliminar esta empresa?",
+      loadImpact: () => CompanyService.getCompanyDeletionImpact(company.id),
+      buildHtml: (impact) => buildDeletionWarningHtml(company.name, impact),
+      fallbackHtml: `<p>Vas a eliminar <b>${escapeHtml(company.name)}</b>. Esta acción no se puede deshacer.</p>`,
+    });
+    if (!confirmed) return;
+
+    try {
+      await CompanyService.deleteCompany(company.id);
+      toast.success("Empresa eliminada exitosamente");
+      fetchCompanies();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Error al eliminar la empresa",
+      );
     }
   };
 
-  const filteredCompanies = companies.filter(c =>
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.nit.includes(searchTerm)
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setPage(1);
+  };
+
+  const handleSort = (key: CompanySortKey) => {
+    const next = nextSortState({ key: sortKey, direction: sortDirection }, key);
+    setSortKey(next.key);
+    setSortDirection(next.direction);
+    setPage(1);
+  };
+
+  const visibleCompanies = useMemo(
+    () =>
+      sortCompanies(
+        companies.filter((company) =>
+          matchesCompanySearch(company, searchTerm),
+        ),
+        sortKey,
+        sortDirection,
+      ),
+    [companies, searchTerm, sortKey, sortDirection],
   );
 
+  const companiesWithoutHeadquarters = companies.filter(
+    (c) => c.headquartersCount === 0,
+  ).length;
   const hasActiveSearch = !!searchTerm;
-  const totalPages = Math.max(1, Math.ceil(filteredCompanies.length / PAGE_SIZE));
-  const pagedCompanies = filteredCompanies.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(visibleCompanies.length / PAGE_SIZE),
+  );
+  const pagedCompanies = visibleCompanies.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE,
+  );
+
+  const emptyState = (
+    <CompanyEmptyState
+      hasSearch={hasActiveSearch}
+      onClear={() => handleSearchChange("")}
+      canCreate={canCreate}
+    />
+  );
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-900">Gestión de Empresas</h1>
-          <p className="text-sm text-zinc-500">
-            {!loading && companies.length > 0
-              ? `${companies.length} ${companies.length === 1 ? 'empresa registrada' : 'empresas registradas'}`
-              : 'Administra las compañías registradas en el sistema.'}
+      <PageHeader
+        title="Gestión de Empresas"
+        description={
+          !loading && companies.length > 0
+            ? `${companies.length} ${companies.length === 1 ? "empresa registrada" : "empresas registradas"}`
+            : "Administra las compañías registradas en el sistema."
+        }
+        actions={
+          canCreate && (
+            <Link
+              href="/empresas/nueva"
+              className={buttonClass()}
+            >
+              <Plus size={18} />
+              Nueva empresa
+            </Link>
+          )
+        }
+      />
+
+      {!loading && companiesWithoutHeadquarters > 0 && (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-sm">
+          <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+          <p>
+            {companiesWithoutHeadquarters === 1
+              ? "1 empresa no tiene sedes."
+              : `${companiesWithoutHeadquarters} empresas no tienen sedes.`}{" "}
+            Sin sedes no se pueden registrar datos de actividad.
           </p>
         </div>
-        {hasPermission(PermissionCode.CREATE_COMPANIES) && (
-          <Link
-            href="/empresas/nueva"
-            className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-bold transition-all shadow-sm active:scale-95"
-          >
-            <Plus size={18} />
-            Nueva Empresa
-          </Link>
-        )}
-      </div>
+      )}
 
       <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">
-        {/* ── Mejora 1: Buscador integrado en toolbar de la tabla ── */}
         <div className="p-4 border-b border-zinc-100 bg-zinc-50/50 flex items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
-            <input
-              type="text"
-              placeholder="Buscar por nombre o NIT..."
-              value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-              className="w-full pl-10 pr-9 py-2 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all text-sm bg-white"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => { setSearchTerm(''); setPage(1); }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 transition-colors"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-          {/* ── Mejora 6: Botón de refresco manual ── */}
+          <SearchInput
+            value={searchTerm}
+            onChange={handleSearchChange}
+            placeholder="Buscar por nombre, NIT o correo..."
+            accent="teal"
+            className="flex-1"
+          />
           <button
             onClick={() => fetchCompanies()}
             disabled={loading}
             className="p-2 rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-100 transition-colors disabled:opacity-50"
             title="Recargar"
+            aria-label="Recargar empresas"
           >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </button>
         </div>
 
-        {/* Mobile card view */}
-        <div className="md:hidden divide-y divide-zinc-100">
-          {loading ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="p-4 animate-pulse space-y-2">
-                <div className="h-4 bg-zinc-100 rounded w-2/3" />
-                <div className="h-3 bg-zinc-100 rounded w-1/3" />
-              </div>
-            ))
-          ) : pagedCompanies.length > 0 ? (
-            pagedCompanies.map((company) => (
-              <div key={company.id} className="p-4 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold overflow-hidden border border-teal-100/50 flex-shrink-0">
-                    {company.logoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={company.logoUrl} alt={company.name} className="w-full h-full object-contain p-1" />
-                    ) : (
-                      company.name.charAt(0)
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-bold text-zinc-900 text-sm truncate">{company.name}</p>
-                    <p className="text-xs text-zinc-500">NIT: {company.nit}</p>
-                    {(company.municipality?.name || company.department?.name) && (
-                      <p className="text-xs text-zinc-500 mt-1">
-                        {company.municipality?.name ?? ''}{company.department?.name ? `, ${company.department.name}` : ''}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  {hasPermission(PermissionCode.UPDATE_COMPANIES) && (
-                    <Link href={`/empresas/${company.id}`} className="p-2 text-zinc-400 hover:text-teal-600 rounded-lg transition-colors">
-                      <Edit2 size={16} />
-                    </Link>
-                  )}
-                  {hasPermission(PermissionCode.DELETE_COMPANIES) && (
-                    <button onClick={() => handleDelete(company.id!)} className="p-2 text-zinc-400 hover:text-red-600 rounded-lg transition-colors">
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))
-          ) : (
-            <CompanyEmptyState
-              hasSearch={hasActiveSearch}
-              onClear={() => { setSearchTerm(''); setPage(1); }}
-              canCreate={hasPermission(PermissionCode.CREATE_COMPANIES)}
-            />
-          )}
-        </div>
+        {hasLoadError && !loading && (
+          <div className="px-6 py-12 flex flex-col items-center gap-3 text-center">
+            <p className="text-sm font-semibold text-zinc-700">
+              No pudimos cargar las empresas
+            </p>
+            <button
+              onClick={() => fetchCompanies()}
+              className="flex items-center gap-2 px-4 py-2 border border-zinc-200 rounded-lg text-sm font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors"
+            >
+              <RefreshCw size={14} /> Reintentar
+            </button>
+          </div>
+        )}
 
-        {/* Desktop table view */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-zinc-50/50 border-b border-zinc-100">
-                <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Empresa</th>
-                <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">NIT</th>
-                <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Ubicación</th>
-                <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Contacto</th>
-                <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {loading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-zinc-100 flex-shrink-0" />
-                        <div className="h-4 bg-zinc-100 rounded w-32" />
+        {!hasLoadError && (
+          <>
+            {/* Mobile card view */}
+            <div className="md:hidden divide-y divide-zinc-100">
+              {loading
+                ? Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="p-4 animate-pulse space-y-2">
+                      <div className="h-4 bg-zinc-100 rounded w-2/3" />
+                      <div className="h-3 bg-zinc-100 rounded w-1/3" />
+                    </div>
+                  ))
+                : pagedCompanies.length > 0
+                  ? pagedCompanies.map((company) => (
+                      <div
+                        key={company.id}
+                        className="p-4 flex items-center justify-between gap-3"
+                      >
+                        <Link
+                          href={`/empresas/${company.id}`}
+                          className="flex items-center gap-3 min-w-0 flex-1"
+                        >
+                          <CompanyAvatar
+                            name={company.name}
+                            logoUrl={company.logoUrl}
+                          />
+                          <div className="min-w-0 space-y-0.5">
+                            <p className="font-bold text-zinc-900 text-sm truncate">
+                              {company.name}
+                            </p>
+                            <p className="text-xs text-zinc-500">
+                              NIT: {company.nit}
+                            </p>
+                            <p className="text-xs text-zinc-500">
+                              {formatLocation(company)}
+                            </p>
+                            <div className="pt-1">
+                              <HeadquartersBadge
+                                count={company.headquartersCount}
+                              />
+                            </div>
+                          </div>
+                        </Link>
+                        <RowActions
+                          entityName={company.name}
+                          editHref={`/empresas/${company.id}`}
+                          canEdit={canUpdate}
+                          canDelete={canDelete}
+                          onDelete={() => handleDelete(company)}
+                        />
                       </div>
-                    </td>
-                    <td className="px-6 py-5"><div className="h-3 bg-zinc-100 rounded w-24" /></td>
-                    <td className="px-6 py-5"><div className="h-3 bg-zinc-100 rounded w-28" /></td>
-                    <td className="px-6 py-5"><div className="h-3 bg-zinc-100 rounded w-36" /></td>
-                    <td className="px-6 py-5" />
+                    ))
+                  : emptyState}
+            </div>
+
+            {/* Desktop table view */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-zinc-50/50 border-b border-zinc-100">
+                    <SortableHeader
+                      label="Empresa"
+                      sortKey="name"
+                      activeKey={sortKey}
+                      direction={sortDirection}
+                      onSort={handleSort}
+                    />
+                    <SortableHeader
+                      label="NIT"
+                      sortKey="nit"
+                      activeKey={sortKey}
+                      direction={sortDirection}
+                      onSort={handleSort}
+                    />
+                    <SortableHeader
+                      label="Sedes"
+                      sortKey="headquarters"
+                      activeKey={sortKey}
+                      direction={sortDirection}
+                      onSort={handleSort}
+                    />
+                    <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                      Ubicación
+                    </th>
+                    <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                      Contacto
+                    </th>
+                    <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider text-right">
+                      Acciones
+                    </th>
                   </tr>
-                ))
-              ) : pagedCompanies.length > 0 ? (
-                pagedCompanies.map((company) => (
-                  <tr key={company.id} className="hover:bg-zinc-50/50 transition-colors group">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold overflow-hidden border border-teal-100/50 flex-shrink-0">
-                          {company.logoUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={company.logoUrl} alt={company.name} className="w-full h-full object-contain p-1" />
-                          ) : (
-                            company.name.charAt(0)
-                          )}
-                        </div>
-                        <span className="font-bold text-zinc-900">{company.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-zinc-600 font-medium">{company.nit}</td>
-                    <td className="px-6 py-4 text-sm text-zinc-500">
-                      {company.municipality?.name ?? '—'}{company.department?.name ? `, ${company.department.name}` : ''}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-zinc-500">{company.email}</td>
-                    <td className="px-6 py-4 text-right">
-                      {/* ── Mejora 4: Acciones hover-only ── */}
-                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {hasPermission(PermissionCode.UPDATE_COMPANIES) && (
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {loading ? (
+                    Array.from({ length: 3 }).map((_, i) => (
+                      <tr key={i} className="animate-pulse">
+                        <td className="px-6 py-5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-zinc-100 flex-shrink-0" />
+                            <div className="h-4 bg-zinc-100 rounded w-32" />
+                          </div>
+                        </td>
+                        <td className="px-6 py-5">
+                          <div className="h-3 bg-zinc-100 rounded w-24" />
+                        </td>
+                        <td className="px-6 py-5">
+                          <div className="h-3 bg-zinc-100 rounded w-16" />
+                        </td>
+                        <td className="px-6 py-5">
+                          <div className="h-3 bg-zinc-100 rounded w-28" />
+                        </td>
+                        <td className="px-6 py-5">
+                          <div className="h-3 bg-zinc-100 rounded w-36" />
+                        </td>
+                        <td className="px-6 py-5" />
+                      </tr>
+                    ))
+                  ) : pagedCompanies.length > 0 ? (
+                    pagedCompanies.map((company) => (
+                      <tr
+                        key={company.id}
+                        className="hover:bg-zinc-50/50 transition-colors"
+                      >
+                        <td className="px-6 py-4">
                           <Link
                             href={`/empresas/${company.id}`}
-                            className="p-2 text-zinc-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
-                            title="Editar empresa"
+                            className="flex items-center gap-3 group"
                           >
-                            <Edit2 size={16} />
+                            <CompanyAvatar
+                              name={company.name}
+                              logoUrl={company.logoUrl}
+                            />
+                            <span className="font-bold text-zinc-900 group-hover:text-teal-700 transition-colors">
+                              {company.name}
+                            </span>
                           </Link>
-                        )}
-                        {hasPermission(PermissionCode.DELETE_COMPANIES) && (
-                          <button
-                            onClick={() => handleDelete(company.id!)}
-                            className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Eliminar empresa"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={5}>
-                    <CompanyEmptyState
-                      hasSearch={hasActiveSearch}
-                      onClear={() => { setSearchTerm(''); setPage(1); }}
-                      canCreate={hasPermission(PermissionCode.CREATE_COMPANIES)}
-                    />
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* ── Mejora 6: Paginación ── */}
-        {!loading && filteredCompanies.length > PAGE_SIZE && (
-          <div className="p-4 border-t border-zinc-100 bg-zinc-50/30 flex items-center justify-between text-sm">
-            <span className="text-xs text-zinc-500">
-              Página <span className="font-bold text-zinc-700">{page}</span> de{' '}
-              <span className="font-bold text-zinc-700">{totalPages}</span>
-              {' '}— {filteredCompanies.length} empresas
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="p-2 rounded-lg border border-zinc-200 text-zinc-600 hover:bg-zinc-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <button
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="p-2 rounded-lg border border-zinc-200 text-zinc-600 hover:bg-zinc-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronRight size={16} />
-              </button>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-zinc-600 font-medium">
+                          {company.nit}
+                        </td>
+                        <td className="px-6 py-4">
+                          <HeadquartersBadge
+                            count={company.headquartersCount}
+                          />
+                        </td>
+                        <td className="px-6 py-4 text-sm text-zinc-500">
+                          {formatLocation(company)}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-zinc-500">
+                          {company.email}
+                        </td>
+                        <td className="px-6 py-4">
+                          <RowActions
+                            entityName={company.name}
+                            editHref={`/empresas/${company.id}`}
+                            canEdit={canUpdate}
+                            canDelete={canDelete}
+                            onDelete={() => handleDelete(company)}
+                          />
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6}>{emptyState}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-          </div>
+          </>
+        )}
+
+        {!loading && !hasLoadError && visibleCompanies.length > PAGE_SIZE && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={visibleCompanies.length}
+            itemsLabel="empresas"
+            onPageChange={setPage}
+          />
         )}
       </div>
     </div>

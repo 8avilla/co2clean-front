@@ -1,7 +1,8 @@
-'use client';
+"use client";
 
-import { useRef } from 'react';
-import { Award, Download, X } from 'lucide-react';
+import { useRef } from "react";
+import { Award, Download, X } from "lucide-react";
+import { buttonClass } from "@/shared/components/Common/button-styles";
 
 interface AnalysisV2CertificateProps {
   companyName: string;
@@ -22,33 +23,37 @@ export const AnalysisV2Certificate = ({
 }: AnalysisV2CertificateProps) => {
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const standardLabel = standard === 'GHG_Protocol' ? 'GHG Protocol' : 'ISO 14064';
+  const standardLabel =
+    standard === "GHG_Protocol" ? "GHG Protocol" : "ISO 14064";
 
-  const formattedTotal = totalTco2e.toLocaleString('es-CO', {
+  const formattedTotal = totalTco2e.toLocaleString("es-CO", {
     minimumFractionDigits: 3,
     maximumFractionDigits: 3,
   });
 
-  const safeName = companyName.length > 32 ? `${companyName.slice(0, 31)}…` : companyName;
+  const safeName =
+    companyName.length > 32 ? `${companyName.slice(0, 31)}…` : companyName;
 
   const handleDownload = () => {
     if (!svgRef.current) return;
     const svgData = new XMLSerializer().serializeToString(svgRef.current);
-    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const svgBlob = new Blob([svgData], {
+      type: "image/svg+xml;charset=utf-8",
+    });
     const url = URL.createObjectURL(svgBlob);
 
     const img = new Image();
     img.onload = () => {
-      const canvas = document.createElement('canvas');
+      const canvas = document.createElement("canvas");
       canvas.width = 800;
       canvas.height = 560;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      ctx.fillStyle = 'white';
+      ctx.fillStyle = "white";
       ctx.fillRect(0, 0, 800, 560);
       ctx.drawImage(img, 0, 0, 800, 560);
-      const pngUrl = canvas.toDataURL('image/png');
-      const a = document.createElement('a');
+      const pngUrl = canvas.toDataURL("image/png");
+      const a = document.createElement("a");
       a.href = pngUrl;
       a.download = `certificado-huella-carbono-${year}.png`;
       document.body.appendChild(a);
@@ -66,7 +71,9 @@ export const AnalysisV2Certificate = ({
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
           <div className="flex items-center gap-2">
             <Award size={18} className="text-violet-600" />
-            <span className="font-bold text-zinc-900 text-sm">Certificado de Huella de Carbono</span>
+            <span className="font-bold text-zinc-900 text-sm">
+              Certificado de Huella de carbono
+            </span>
           </div>
           <button
             onClick={onClose}
@@ -89,8 +96,26 @@ export const AnalysisV2Certificate = ({
             <rect width="800" height="560" fill="white" />
 
             {/* Outer border */}
-            <rect x="10" y="10" width="780" height="540" rx="18" fill="none" stroke="#7c3aed" strokeWidth="2.5" />
-            <rect x="18" y="18" width="764" height="524" rx="14" fill="none" stroke="#ede9fe" strokeWidth="1.5" />
+            <rect
+              x="10"
+              y="10"
+              width="780"
+              height="540"
+              rx="18"
+              fill="none"
+              stroke="#7c3aed"
+              strokeWidth="2.5"
+            />
+            <rect
+              x="18"
+              y="18"
+              width="764"
+              height="524"
+              rx="14"
+              fill="none"
+              stroke="#ede9fe"
+              strokeWidth="1.5"
+            />
 
             {/* Corner dots */}
             <circle cx="38" cy="38" r="7" fill="#8b5cf6" opacity="0.35" />
@@ -99,12 +124,27 @@ export const AnalysisV2Certificate = ({
             <circle cx="762" cy="522" r="7" fill="#8b5cf6" opacity="0.35" />
 
             {/* Header band */}
-            <rect x="18" y="18" width="764" height="115" rx="14" fill="#7c3aed" />
-            <rect x="18" y="105" width="764" height="28" rx="0" fill="#7c3aed" />
+            <rect
+              x="18"
+              y="18"
+              width="764"
+              height="115"
+              rx="14"
+              fill="#7c3aed"
+            />
+            <rect
+              x="18"
+              y="105"
+              width="764"
+              height="28"
+              rx="0"
+              fill="#7c3aed"
+            />
 
             {/* Brand */}
             <text
-              x="400" y="62"
+              x="400"
+              y="62"
               textAnchor="middle"
               fontSize="12"
               fontWeight="600"
@@ -117,7 +157,8 @@ export const AnalysisV2Certificate = ({
 
             {/* Title */}
             <text
-              x="400" y="102"
+              x="400"
+              y="102"
               textAnchor="middle"
               fontSize="20"
               fontWeight="700"
@@ -129,13 +170,21 @@ export const AnalysisV2Certificate = ({
             </text>
 
             {/* "Se certifica que" */}
-            <text x="400" y="170" textAnchor="middle" fontSize="13" fill="#71717a" fontFamily="system-ui, sans-serif">
+            <text
+              x="400"
+              y="170"
+              textAnchor="middle"
+              fontSize="13"
+              fill="#71717a"
+              fontFamily="system-ui, sans-serif"
+            >
               Se certifica que la organización
             </text>
 
             {/* Company name */}
             <text
-              x="400" y="210"
+              x="400"
+              y="210"
               textAnchor="middle"
               fontSize="26"
               fontWeight="800"
@@ -146,15 +195,30 @@ export const AnalysisV2Certificate = ({
             </text>
 
             {/* Divider */}
-            <line x1="180" y1="232" x2="620" y2="232" stroke="#e4e4e7" strokeWidth="1" />
+            <line
+              x1="180"
+              y1="232"
+              x2="620"
+              y2="232"
+              stroke="#e4e4e7"
+              strokeWidth="1"
+            />
 
-            <text x="400" y="268" textAnchor="middle" fontSize="13" fill="#71717a" fontFamily="system-ui, sans-serif">
+            <text
+              x="400"
+              y="268"
+              textAnchor="middle"
+              fontSize="13"
+              fill="#71717a"
+              fontFamily="system-ui, sans-serif"
+            >
               ha cuantificado su huella de carbono corporativa para el año
             </text>
 
             {/* Year */}
             <text
-              x="400" y="318"
+              x="400"
+              y="318"
               textAnchor="middle"
               fontSize="52"
               fontWeight="900"
@@ -164,13 +228,21 @@ export const AnalysisV2Certificate = ({
               {year}
             </text>
 
-            <text x="400" y="354" textAnchor="middle" fontSize="13" fill="#71717a" fontFamily="system-ui, sans-serif">
+            <text
+              x="400"
+              y="354"
+              textAnchor="middle"
+              fontSize="13"
+              fill="#71717a"
+              fontFamily="system-ui, sans-serif"
+            >
               con un resultado total de
             </text>
 
             {/* Total value */}
             <text
-              x="400" y="404"
+              x="400"
+              y="404"
               textAnchor="middle"
               fontSize="38"
               fontWeight="900"
@@ -181,9 +253,17 @@ export const AnalysisV2Certificate = ({
             </text>
 
             {/* Methodology badge */}
-            <rect x="282" y="424" width="236" height="36" rx="18" fill="#ede9fe" />
+            <rect
+              x="282"
+              y="424"
+              width="236"
+              height="36"
+              rx="18"
+              fill="#ede9fe"
+            />
             <text
-              x="400" y="447"
+              x="400"
+              y="447"
               textAnchor="middle"
               fontSize="12"
               fontWeight="700"
@@ -194,9 +274,23 @@ export const AnalysisV2Certificate = ({
             </text>
 
             {/* Footer divider */}
-            <line x1="60" y1="490" x2="740" y2="490" stroke="#e4e4e7" strokeWidth="1" />
+            <line
+              x1="60"
+              y1="490"
+              x2="740"
+              y2="490"
+              stroke="#e4e4e7"
+              strokeWidth="1"
+            />
 
-            <text x="400" y="514" textAnchor="middle" fontSize="10" fill="#a1a1aa" fontFamily="system-ui, sans-serif">
+            <text
+              x="400"
+              y="514"
+              textAnchor="middle"
+              fontSize="10"
+              fill="#a1a1aa"
+              fontFamily="system-ui, sans-serif"
+            >
               Emitido el {analysisDate} · Generado por EcoCore Platform
             </text>
           </svg>
@@ -212,7 +306,7 @@ export const AnalysisV2Certificate = ({
           </button>
           <button
             onClick={handleDownload}
-            className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+            className={buttonClass()}
           >
             <Download size={15} />
             Descargar PNG
