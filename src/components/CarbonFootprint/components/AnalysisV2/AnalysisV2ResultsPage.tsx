@@ -25,7 +25,7 @@ import { AnalysisV2Treemap } from "./AnalysisV2Treemap";
 import { AnalysisV2WaterfallChart } from "./AnalysisV2WaterfallChart";
 import { AnalysisRecordsTab } from "./AnalysisRecordsTab";
 import { AnalysisFactorsTab } from "./AnalysisFactorsTab";
-import { buttonClass } from '@/shared/components/Common/button-styles';
+import { buttonClass } from "@/shared/components/Common/button-styles";
 
 interface AnalysisV2ResultsPageProps {
   analysisId: string;
@@ -71,35 +71,29 @@ function KpiCard({
   value,
   unit,
   sub,
-  accent,
-  wide,
+  isText,
 }: {
   label: string;
   value: string | number;
   unit?: string;
   sub?: string;
-  accent?: boolean;
-  wide?: boolean;
+  /** Text values (e.g. a group name) use a smaller size than numbers */
+  isText?: boolean;
 }) {
   return (
-    <div
-      className={`bg-white rounded-2xl border shadow-sm p-4 space-y-0.5 ${
-        wide ? "lg:col-span-2" : ""
-      } ${accent ? "border-l-4 border-l-violet-500 border-zinc-100" : "border-zinc-100"}`}
-    >
-      <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-        {label}
-      </p>
-      <div className="flex items-baseline gap-1.5">
+    <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5 space-y-1.5">
+      <p className="text-xs font-semibold text-zinc-500">{label}</p>
+      <div className="flex items-baseline gap-2">
         <span
-          className={`font-black text-zinc-900 ${accent ? "text-2xl" : "text-xl"}`}
+          className={`font-black text-zinc-900 ${isText ? "text-xl leading-8 truncate" : "text-3xl"}`}
+          title={isText ? String(value) : undefined}
         >
           {value}
         </span>
-        {unit && <span className="text-xs text-zinc-400">{unit}</span>}
+        {unit && <span className="text-sm text-zinc-500">{unit}</span>}
       </div>
       {sub && (
-        <p className="text-[10px] text-zinc-400 line-clamp-2" title={sub}>
+        <p className="text-xs text-zinc-500 line-clamp-2" title={sub}>
           {sub}
         </p>
       )}
@@ -143,10 +137,7 @@ export const AnalysisV2ResultsPage = ({
           <p className="font-bold text-zinc-700">Error al cargar el análisis</p>
           <p className="text-sm text-zinc-400">{error}</p>
         </div>
-        <button
-          onClick={refetch}
-          className={buttonClass()}
-        >
+        <button onClick={refetch} className={buttonClass()}>
           <RefreshCw size={15} />
           Reintentar
         </button>
@@ -244,7 +235,7 @@ export const AnalysisV2ResultsPage = ({
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
         <div className="space-y-1">
@@ -253,7 +244,7 @@ export const AnalysisV2ResultsPage = ({
             className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-700 transition-colors"
           >
             <ArrowLeft size={14} />
-            Volver a Análisis V2
+            Volver a Análisis
           </Link>
           <h1 className="text-2xl font-black text-zinc-900">
             Resultados {analysis.year}
@@ -301,7 +292,7 @@ export const AnalysisV2ResultsPage = ({
               target="_blank"
               rel="noopener noreferrer"
               title="Descargar informe"
-              className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-violet-700 hover:text-violet-900 hover:bg-violet-50 border border-violet-200 rounded-xl transition-colors"
+              className={buttonClass({ variant: "secondary" })}
             >
               <Download size={16} />
               Descargar informe
@@ -310,6 +301,7 @@ export const AnalysisV2ResultsPage = ({
           <button
             onClick={refetch}
             title="Recalcular resultados"
+            aria-label="Recalcular resultados"
             className="p-2 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 border border-zinc-200 rounded-xl transition-colors"
           >
             <RefreshCw size={16} />
@@ -341,24 +333,23 @@ export const AnalysisV2ResultsPage = ({
       )}
 
       {/* ── KPI cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="Total de emisiones"
           value={Math.round(totalTco2e).toLocaleString("es-CO")}
           unit="tCO₂e"
-          sub={`Año ${analysis.year} · ${analysisStandard === "GHG_Protocol" ? "GHG Protocol" : "ISO 14064"}`}
-          accent
+          sub={`Año ${analysis.year}`}
         />
         <KpiCard
-          label="Mayor Foco de Emisión"
-          value={`${topCategoryPercent}%`}
-          sub={topCategory?.categoryName ?? "N/A"}
+          label="Mayor foco de emisión"
+          value={topCategory?.categoryName ?? "N/A"}
+          sub={topCategory ? `${topCategoryPercent}% del total` : undefined}
+          isText
         />
         <KpiCard
-          label="Promedio por Registro"
+          label="Promedio por registro"
           value={averagePerRecord}
-          unit="tCO₂e / reg"
-          sub="Intensidad de emisión promedio"
+          unit="tCO₂e / registro"
         />
         <KpiCard
           label="Registros procesados"
@@ -379,7 +370,7 @@ export const AnalysisV2ResultsPage = ({
                 relative flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px
                 ${
                   activeTab === tab.id
-                    ? "border-violet-600 text-violet-700"
+                    ? "border-teal-600 text-teal-700"
                     : "border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300"
                 }
               `}
@@ -388,9 +379,9 @@ export const AnalysisV2ResultsPage = ({
               {tab.label}
               {tab.count !== undefined && (
                 <span
-                  className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${
+                  className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
                     activeTab === tab.id
-                      ? "bg-violet-100 text-violet-700"
+                      ? "bg-teal-100 text-teal-700"
                       : "bg-zinc-100 text-zinc-500"
                   }`}
                 >
@@ -407,7 +398,7 @@ export const AnalysisV2ResultsPage = ({
 
       {/* ── Tab: Resumen ── */}
       {activeTab === "summary" && (
-        <div className="space-y-5">
+        <div className="space-y-6">
           {/* Coverage alert */}
           {uncoveredCategories.length > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2.5">
@@ -422,7 +413,7 @@ export const AnalysisV2ResultsPage = ({
               </div>
               <ul className="space-y-1 pl-5">
                 {uncoveredCategories.map((c, i) => (
-                  <li key={i} className="text-xs text-amber-700">
+                  <li key={i} className="text-sm text-amber-800">
                     • <span className="font-semibold">{c.categoryName}</span> —{" "}
                     {c.missing} de {c.total} registros sin factor
                   </li>
@@ -430,7 +421,7 @@ export const AnalysisV2ResultsPage = ({
               </ul>
               <button
                 onClick={handleViewUncovered}
-                className="text-xs font-semibold text-amber-700 hover:text-amber-900 underline underline-offset-2"
+                className="text-sm font-semibold text-amber-800 hover:text-amber-900 underline underline-offset-2"
               >
                 Ver registros sin factor →
               </button>
@@ -441,7 +432,7 @@ export const AnalysisV2ResultsPage = ({
           <AnalysisV2TopEmitters groups={groups} totalTco2e={totalTco2e} />
 
           {/* Donut + Treemap */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <AnalysisV2EmissionsChart groups={groups} totalTco2e={totalTco2e} />
             <AnalysisV2Treemap groups={groups} totalTco2e={totalTco2e} />
           </div>

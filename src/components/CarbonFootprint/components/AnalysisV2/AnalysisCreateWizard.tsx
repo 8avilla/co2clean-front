@@ -16,7 +16,7 @@ import {
 } from "../../types";
 
 import { FORM_LABEL_CLASS } from "@/shared/components/Common/form-styles";
-import { buttonClass } from '@/shared/components/Common/button-styles';
+import { buttonClass } from "@/shared/components/Common/button-styles";
 interface AnalysisCreateWizardProps {
   companyId: string;
   existingAnalyses: ApiCarbonFootprintAnalysis[];

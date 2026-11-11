@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { ArrowDown, Award, FileText, Maximize2, Minimize2 } from 'lucide-react';
-import { useCountUp } from './hooks/useCountUp';
-import { GroupedResult } from './hooks/useAnalysisResults';
+import { useEffect, useState } from "react";
+import { ArrowDown, Award, FileText, Maximize2, Minimize2 } from "lucide-react";
+import { useCountUp } from "./hooks/useCountUp";
+import { GroupedResult } from "./hooks/useAnalysisResults";
 
 interface AnalysisV2HeroSectionProps {
   companyName: string;
@@ -17,7 +17,14 @@ interface AnalysisV2HeroSectionProps {
   onExportPdf: () => void;
 }
 
-const GROUP_COLORS = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#f43f5e', '#06b6d4'];
+const GROUP_COLORS = [
+  "#8b5cf6",
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#f43f5e",
+  "#06b6d4",
+];
 
 export const AnalysisV2HeroSection = ({
   companyName,
@@ -38,9 +45,10 @@ export const AnalysisV2HeroSection = ({
     return () => clearTimeout(t);
   }, []);
 
-  const standardLabel = standard === 'GHG_Protocol' ? 'GHG Protocol' : 'ISO 14064';
+  const standardLabel =
+    standard === "GHG_Protocol" ? "GHG Protocol" : "ISO 14064";
 
-  const formattedValue = animated.toLocaleString('es-CO', {
+  const formattedValue = animated.toLocaleString("es-CO", {
     minimumFractionDigits: 3,
     maximumFractionDigits: 3,
   });
@@ -48,14 +56,17 @@ export const AnalysisV2HeroSection = ({
   return (
     <div
       className="relative rounded-3xl overflow-hidden flex flex-col items-center justify-center text-center px-6 py-20 min-h-[500px]"
-      style={{ background: 'linear-gradient(135deg, #09090b 0%, #18181b 55%, #1c1917 100%)' }}
+      style={{
+        background:
+          "linear-gradient(135deg, #09090b 0%, #18181b 55%, #1c1917 100%)",
+      }}
     >
       {/* Ambient gradients */}
       <div
         className="absolute inset-0 opacity-[0.07]"
         style={{
           backgroundImage:
-            'radial-gradient(ellipse at 20% 20%, #8b5cf6 0%, transparent 55%), radial-gradient(ellipse at 80% 80%, #3b82f6 0%, transparent 55%)',
+            "radial-gradient(ellipse at 20% 20%, #8b5cf6 0%, transparent 55%), radial-gradient(ellipse at 80% 80%, #3b82f6 0%, transparent 55%)",
         }}
       />
 
@@ -77,18 +88,26 @@ export const AnalysisV2HeroSection = ({
         </button>
         <button
           onClick={onPresentationMode}
-          title={isPresentationMode ? 'Salir del modo presentación' : 'Modo presentación'}
+          title={
+            isPresentationMode
+              ? "Salir del modo presentación"
+              : "Modo presentación"
+          }
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/20 transition-all backdrop-blur-sm"
         >
-          {isPresentationMode ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-          {isPresentationMode ? 'Salir' : 'Presentar'}
+          {isPresentationMode ? (
+            <Minimize2 size={13} />
+          ) : (
+            <Maximize2 size={13} />
+          )}
+          {isPresentationMode ? "Salir" : "Presentar"}
         </button>
       </div>
 
       {/* Main content */}
       <div
         className={`relative z-10 transition-all duration-700 ${
-          visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
+          visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5"
         }`}
       >
         {/* Company + year */}
@@ -127,7 +146,10 @@ export const AnalysisV2HeroSection = ({
                   key={g.groupId}
                   className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10"
                 >
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                  <span
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: color }}
+                  />
                   <span className="text-zinc-300 text-xs font-semibold">
                     {g.groupCode || g.groupName}
                   </span>
@@ -143,7 +165,9 @@ export const AnalysisV2HeroSection = ({
 
       {/* Scroll indicator */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-zinc-700">
-        <span className="text-[10px] uppercase tracking-[0.15em]">Ver análisis</span>
+        <span className="text-[10px] uppercase tracking-[0.15em]">
+          Ver análisis
+        </span>
         <ArrowDown size={13} className="animate-bounce" />
       </div>
     </div>

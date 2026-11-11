@@ -59,3 +59,31 @@ describe('AnalysisFactorsTab (buscador)', () => {
     await waitFor(() => expect(inList('Energía Eléctrica').length).toBeGreaterThan(0));
   });
 });
+
+describe('AnalysisFactorsTab (formato)', () => {
+  it('debería mostrar los factores con cifras significativas uniformes y la incertidumbre con 2 decimales', () => {
+    render(
+      <AnalysisFactorsTab
+        factors={[
+          factor({ id: 'a', factor: 0.005, uncertainty: 0 }),
+          factor({
+            id: 'b',
+            gas: { id: 'g9', chemicalName: 'Dióxido de Carbono', formula: 'CO₂', gwp: 1 },
+            factor: 6.882,
+            uncertainty: 0.298,
+          }),
+        ]}
+      />,
+    );
+    expect(screen.getByText('0,005')).toBeInTheDocument();
+    expect(screen.getByText('6,882')).toBeInTheDocument();
+    expect(screen.getByText('0,00%')).toBeInTheDocument();
+    expect(screen.getByText('0,30%')).toBeInTheDocument();
+  });
+
+  it('debería filtrar fuentes con etiquetas visibles y mostrar "Todos" por defecto', () => {
+    render(<AnalysisFactorsTab factors={factors} />);
+    expect(screen.getByLabelText('Tipo de fuente')).toHaveValue('');
+    expect(screen.getByLabelText('Fuente de emisión')).toHaveValue('');
+  });
+});

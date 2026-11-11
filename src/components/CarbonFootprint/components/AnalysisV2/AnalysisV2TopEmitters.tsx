@@ -72,10 +72,12 @@ export const AnalysisV2TopEmitters = ({
         : ["text-4xl"];
 
   return (
-    <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-6">
+    <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-8">
       <div className="mb-8">
-        <h3 className="text-sm font-bold text-zinc-900">Top Emisores</h3>
-        <p className="text-xs text-zinc-400 mt-0.5">
+        <h3 className="text-base font-bold text-zinc-900">
+          Principales emisores
+        </h3>
+        <p className="text-sm text-zinc-500 mt-0.5">
           Mayores contribuciones en tCO₂e
         </p>
       </div>
@@ -98,11 +100,9 @@ export const AnalysisV2TopEmitters = ({
                 >
                   {fmt(entry.tco2e)}
                 </div>
-                <div className="text-[10px] text-zinc-400 font-medium">
-                  tCO₂e
-                </div>
+                <div className="text-xs text-zinc-500 font-medium">tCO₂e</div>
                 <div
-                  className={`text-xs font-bold mt-0.5 ${
+                  className={`text-sm font-bold mt-0.5 ${
                     isFirst ? "text-zinc-700" : "text-zinc-400"
                   }`}
                 >
@@ -131,7 +131,7 @@ export const AnalysisV2TopEmitters = ({
 
               {/* Category name */}
               <p
-                className="text-xs font-semibold text-center text-zinc-500 leading-tight line-clamp-2 max-w-full px-1"
+                className="text-sm font-semibold text-center text-zinc-700 leading-tight line-clamp-2 max-w-full px-1"
                 title={entry.name}
               >
                 {entry.name}
@@ -142,7 +142,7 @@ export const AnalysisV2TopEmitters = ({
       </div>
 
       {/* Bottom rule */}
-      <div className="mt-6 pt-4 border-t border-zinc-100 flex justify-between items-center text-xs text-zinc-400">
+      <div className="mt-6 pt-4 border-t border-zinc-100 flex justify-between items-center text-sm text-zinc-500">
         <span>
           De {groups.flatMap((g) => g.categories).length} categorías totales
         </span>

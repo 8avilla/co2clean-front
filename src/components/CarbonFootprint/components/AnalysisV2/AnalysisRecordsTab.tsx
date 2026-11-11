@@ -1,17 +1,16 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  CheckCircle2,
-  XCircle,
-  Download,
-  Search,
-} from "lucide-react";
+import { CheckCircle2, XCircle, Download } from "lucide-react";
 import { ApiCarbonFootprint } from "../../types";
 import { SearchInput } from "@/shared/components/Common/SearchInput";
 import { matchesSearchTerms } from "@/shared/lib/list-utils";
+import { Pagination } from "@/shared/components/Common/Pagination";
+import { buttonClass } from "@/shared/components/Common/button-styles";
+import {
+  FORM_LABEL_CLASS,
+  formInputClass,
+} from "@/shared/components/Common/form-styles";
 
 interface AnalysisRecordsTabProps {
   records: ApiCarbonFootprint[];
@@ -176,66 +175,93 @@ export const AnalysisRecordsTab = ({
     <div className="space-y-3">
       <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
         {/* Toolbar */}
-        <div className="px-5 py-3.5 border-b border-zinc-100 flex flex-wrap items-center gap-3">
+        <div className="px-5 py-4 border-b border-zinc-100 flex flex-wrap items-end gap-4">
           {/* Search */}
           <SearchInput
             value={search}
             onChange={setSearch}
             placeholder="Buscar por item o subfuente..."
-            accent="violet"
+            accent="teal"
             className="flex-1 min-w-48"
           />
 
           {/* Group filter */}
           {uniqueGroups.length > 1 && (
-            <select
-              value={groupFilter}
-              onChange={(e) => setGroupFilter(e.target.value)}
-              className="text-xs px-2.5 py-1.5 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all bg-white text-zinc-700"
-            >
-              <option value="">Todos los grupos</option>
-              {uniqueGroups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
+            <div className="space-y-1">
+              <label
+                htmlFor="records-group-filter"
+                className={FORM_LABEL_CLASS}
+              >
+                Grupo de emisión
+              </label>
+              <select
+                id="records-group-filter"
+                value={groupFilter}
+                onChange={(e) => setGroupFilter(e.target.value)}
+                className={`${formInputClass("teal")} min-w-[180px]`}
+              >
+                <option value="">Todos</option>
+                {uniqueGroups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
 
           {/* Category filter */}
           {uniqueCategories.length > 0 && (
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="text-xs px-2.5 py-1.5 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all bg-white text-zinc-700"
-            >
-              <option value="">Todos los tipos de fuente</option>
-              {uniqueCategories.map((c) => (
-                <option key={c.id} value={c.id} title={c.name}>
-                  {c.name.length > 30
-                    ? c.name.substring(0, 27) + "..."
-                    : c.name}
-                </option>
-              ))}
-            </select>
+            <div className="space-y-1">
+              <label
+                htmlFor="records-category-filter"
+                className={FORM_LABEL_CLASS}
+              >
+                Tipo de fuente
+              </label>
+              <select
+                id="records-category-filter"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className={`${formInputClass("teal")} min-w-[180px]`}
+              >
+                <option value="">Todos</option>
+                {uniqueCategories.map((c) => (
+                  <option key={c.id} value={c.id} title={c.name}>
+                    {c.name.length > 30
+                      ? c.name.substring(0, 27) + "..."
+                      : c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
 
           {/* Source filter */}
           {uniqueSources.length > 0 && (
-            <select
-              value={sourceFilter}
-              onChange={(e) => setSourceFilter(e.target.value)}
-              className="text-xs px-2.5 py-1.5 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all bg-white text-zinc-700"
-            >
-              <option value="">Todas las fuentes de emision</option>
-              {uniqueSources.map((s) => (
-                <option key={s.id} value={s.id} title={s.name}>
-                  {s.name.length > 30
-                    ? s.name.substring(0, 27) + "..."
-                    : s.name}
-                </option>
-              ))}
-            </select>
+            <div className="space-y-1">
+              <label
+                htmlFor="records-source-filter"
+                className={FORM_LABEL_CLASS}
+              >
+                Fuente de emisión
+              </label>
+              <select
+                id="records-source-filter"
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value)}
+                className={`${formInputClass("teal")} min-w-[180px]`}
+              >
+                <option value="">Todas</option>
+                {uniqueSources.map((s) => (
+                  <option key={s.id} value={s.id} title={s.name}>
+                    {s.name.length > 30
+                      ? s.name.substring(0, 27) + "..."
+                      : s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
 
           {/* Uncovered toggle */}
@@ -243,13 +269,13 @@ export const AnalysisRecordsTab = ({
             <button
               type="button"
               onClick={() => setShowUncovered((v) => !v)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold border transition-colors ${
                 showUncovered
                   ? "bg-red-50 text-red-700 border-red-200"
                   : "bg-zinc-50 text-zinc-600 border-zinc-200 hover:border-zinc-300"
               }`}
             >
-              <XCircle size={12} />
+              <XCircle size={14} />
               Sin factor ({uncoveredCount})
             </button>
           )}
@@ -265,15 +291,15 @@ export const AnalysisRecordsTab = ({
               )
             }
             title="Exportar registros filtrados a CSV"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-100 transition-colors ml-auto"
+            className={`${buttonClass({ variant: "secondary" })} ml-auto`}
           >
-            <Download size={12} />
-            CSV
+            <Download size={14} />
+            Exportar CSV
           </button>
         </div>
 
         {/* Stats row */}
-        <div className="px-5 py-2 bg-zinc-50/60 border-b border-zinc-100 flex items-center justify-between text-xs text-zinc-400">
+        <div className="px-5 py-2.5 bg-zinc-50/60 border-b border-zinc-100 flex items-center justify-between text-sm text-zinc-500">
           <span>
             {filteredRecords.length !== records.length
               ? `${filteredRecords.length.toLocaleString("es-CO")} de ${records.length.toLocaleString("es-CO")} registros`
@@ -288,32 +314,32 @@ export const AnalysisRecordsTab = ({
         </div>
 
         {filteredRecords.length === 0 ? (
-          <div className="px-6 py-12 text-center text-zinc-400 text-sm">
+          <div className="px-6 py-12 text-center text-zinc-500 text-sm">
             No hay registros que coincidan con los filtros aplicados
           </div>
         ) : (
           <>
             {/* Table */}
             <div className="overflow-x-auto">
-              <table className="w-full text-xs">
+              <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-zinc-50 border-b border-zinc-100 text-zinc-400 font-bold uppercase tracking-wider">
-                    <th className="px-4 py-2.5 text-right w-10">#</th>
-                    <th className="px-4 py-2.5 text-left">Item</th>
-                    <th className="px-4 py-2.5 text-center">Año</th>
-                    <th className="px-4 py-2.5 text-center hidden sm:table-cell">
+                  <tr className="bg-zinc-50 border-b border-zinc-100 text-zinc-500 text-xs font-semibold">
+                    <th className="px-4 py-3 text-right w-10">#</th>
+                    <th className="px-4 py-3 text-left">Item</th>
+                    <th className="px-4 py-3 text-center">Año</th>
+                    <th className="px-4 py-3 text-center hidden sm:table-cell">
                       Carga
                     </th>
-                    <th className="px-4 py-2.5 text-right">Cantidad</th>
-                    <th className="px-4 py-2.5 text-left">Unidad</th>
-                    <th className="px-4 py-2.5 text-left hidden md:table-cell">
+                    <th className="px-4 py-3 text-right">Cantidad</th>
+                    <th className="px-4 py-3 text-left">Unidad</th>
+                    <th className="px-4 py-3 text-left hidden md:table-cell">
                       Tipo de fuente
                     </th>
-                    <th className="px-4 py-2.5 text-left">Fuente de emisión</th>
-                    <th className="px-4 py-2.5 text-center">Factor</th>
+                    <th className="px-4 py-3 text-left">Fuente de emisión</th>
+                    <th className="px-4 py-3 text-center">Factor</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-50">
+                <tbody className="divide-y divide-zinc-100">
                   {pageRecords.map((record, idx) => {
                     const hasFactor = recordIdsWithFactors.has(record.id);
                     return (
@@ -325,65 +351,65 @@ export const AnalysisRecordsTab = ({
                             : "bg-red-50/30 hover:bg-red-50/50"
                         }`}
                       >
-                        <td className="px-4 py-2.5 text-right text-zinc-300 font-mono tabular-nums">
+                        <td className="px-4 py-3 text-right text-zinc-400 font-mono tabular-nums">
                           {startRow + idx}
                         </td>
                         <td
-                          className="px-4 py-2.5 text-zinc-700 max-w-[180px] truncate"
+                          className="px-4 py-3 text-zinc-900 max-w-[220px] truncate"
                           title={record.item ?? ""}
                         >
                           {record.item ?? (
-                            <span className="text-zinc-300">—</span>
+                            <span className="text-zinc-400">—</span>
                           )}
                         </td>
-                        <td className="px-4 py-2.5 text-center text-zinc-600 font-mono">
+                        <td className="px-4 py-3 text-center text-zinc-600 font-mono">
                           {record.year}
                         </td>
-                        <td className="px-4 py-2.5 text-center hidden sm:table-cell">
-                          <span className="px-1.5 py-0.5 rounded text-zinc-500 bg-zinc-100 text-[10px] font-medium">
+                        <td className="px-4 py-3 text-center hidden sm:table-cell">
+                          <span className="px-1.5 py-0.5 rounded text-zinc-600 bg-zinc-100 text-xs font-medium">
                             {LOAD_MODE_LABELS[record.loadMode] ??
                               record.loadMode}
                           </span>
                         </td>
-                        <td className="px-4 py-2.5 text-right font-mono tabular-nums text-zinc-800">
+                        <td className="px-4 py-3 text-right font-mono tabular-nums text-zinc-800">
                           {record.quantity != null ? (
                             record.quantity.toLocaleString("es-CO", {
                               maximumFractionDigits: 4,
                             })
                           ) : (
-                            <span className="text-zinc-300">—</span>
+                            <span className="text-zinc-400">—</span>
                           )}
                         </td>
-                        <td className="px-4 py-2.5 text-zinc-500">
+                        <td className="px-4 py-3 text-zinc-600">
                           {record.emissionUnit?.symbol ?? (
-                            <span className="text-zinc-300">—</span>
+                            <span className="text-zinc-400">—</span>
                           )}
                         </td>
                         <td
-                          className="px-4 py-2.5 text-zinc-500 max-w-[140px] truncate hidden md:table-cell"
+                          className="px-4 py-3 text-zinc-600 max-w-[200px] truncate hidden md:table-cell"
                           title={record.emissionSourceCategory?.name ?? ""}
                         >
                           {record.emissionSourceCategory?.name ?? (
-                            <span className="text-zinc-300">—</span>
+                            <span className="text-zinc-400">—</span>
                           )}
                         </td>
                         <td
-                          className="px-4 py-2.5 text-zinc-500 max-w-[160px] truncate"
+                          className="px-4 py-3 text-zinc-600 max-w-[220px] truncate"
                           title={record.emissionSource?.name ?? ""}
                         >
                           {record.emissionSource?.name ?? (
-                            <span className="text-zinc-300">—</span>
+                            <span className="text-zinc-400">—</span>
                           )}
                         </td>
-                        <td className="px-4 py-2.5 text-center">
+                        <td className="px-4 py-3 text-center">
                           {hasFactor ? (
                             <CheckCircle2
-                              size={14}
+                              size={16}
                               className="text-emerald-500 mx-auto"
                             />
                           ) : (
                             <XCircle
-                              size={14}
+                              size={16}
                               className="text-red-400 mx-auto"
                             />
                           )}
@@ -395,65 +421,17 @@ export const AnalysisRecordsTab = ({
               </table>
             </div>
 
-            {/* Pagination */}
             {totalPages > 1 && (
-              <div className="px-5 py-3 border-t border-zinc-100 flex items-center justify-between gap-4 bg-zinc-50/50">
-                <span className="text-xs text-zinc-400">
-                  Página {page} de {totalPages}
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => goTo(1)}
-                    disabled={page === 1}
-                    className="px-2 py-1 text-xs text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                  >
-                    «
-                  </button>
-                  <button
-                    onClick={() => goTo(page - 1)}
-                    disabled={page === 1}
-                    className="p-1.5 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ChevronLeft size={14} />
-                  </button>
-
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let p: number;
-                    if (totalPages <= 5) p = i + 1;
-                    else if (page <= 3) p = i + 1;
-                    else if (page >= totalPages - 2) p = totalPages - 4 + i;
-                    else p = page - 2 + i;
-                    return (
-                      <button
-                        key={p}
-                        onClick={() => goTo(p)}
-                        className={`w-7 h-7 text-xs rounded-lg font-medium transition-colors ${
-                          p === page
-                            ? "bg-violet-600 text-white"
-                            : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100"
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    );
-                  })}
-
-                  <button
-                    onClick={() => goTo(page + 1)}
-                    disabled={page === totalPages}
-                    className="p-1.5 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ChevronRight size={14} />
-                  </button>
-                  <button
-                    onClick={() => goTo(totalPages)}
-                    disabled={page === totalPages}
-                    className="px-2 py-1 text-xs text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                  >
-                    »
-                  </button>
-                </div>
-              </div>
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                totalItems={filteredRecords.length}
+                totalUnfiltered={records.length}
+                itemsLabel={
+                  filteredRecords.length === 1 ? "registro" : "registros"
+                }
+                onPageChange={goTo}
+              />
             )}
           </>
         )}

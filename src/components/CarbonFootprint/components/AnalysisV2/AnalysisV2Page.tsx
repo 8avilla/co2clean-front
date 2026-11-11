@@ -15,7 +15,7 @@ import {
 import { PageHeader } from "@/shared/components/Common/PageHeader";
 import { getActiveCompany } from "@/shared/lib/session";
 import { SearchInput } from "@/shared/components/Common/SearchInput";
-import { buttonClass } from '@/shared/components/Common/button-styles';
+import { buttonClass } from "@/shared/components/Common/button-styles";
 
 export const AnalysisV2Page = () => {
   const [activeCompany] = useState(() => getActiveCompany());
@@ -174,7 +174,7 @@ export const AnalysisV2Page = () => {
           value={searchTerm}
           onChange={setSearchTerm}
           placeholder="Buscar por año..."
-          accent="violet"
+          accent="teal"
           className="flex-1"
         />
         <select

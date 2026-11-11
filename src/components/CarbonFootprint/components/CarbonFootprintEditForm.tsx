@@ -308,7 +308,7 @@ export const CarbonFootprintEditForm = ({ recordId }: Props) => {
               <label className={FORM_LABEL_CLASS}>Año de reporte</label>
               <select
                 {...register("year")}
-                className={`${formInputClass("violet")} text-zinc-700`}
+                className={`${formInputClass("teal")} text-zinc-700`}
               >
                 {years.map((y) => (
                   <option key={y} value={y.toString()}>
@@ -337,7 +337,7 @@ export const CarbonFootprintEditForm = ({ recordId }: Props) => {
               {...register("item")}
               type="text"
               placeholder="Descripción del registro de actividad"
-              className={`${formInputClass("violet")} placeholder-zinc-400`}
+              className={`${formInputClass("teal")} placeholder-zinc-400`}
             />
           </div>
 
@@ -351,7 +351,7 @@ export const CarbonFootprintEditForm = ({ recordId }: Props) => {
               step="any"
               min="0"
               placeholder="0.00"
-              className={`${formInputClass("violet")} placeholder-zinc-400`}
+              className={`${formInputClass("teal")} placeholder-zinc-400`}
             />
           </div>
         </div>
@@ -373,7 +373,7 @@ export const CarbonFootprintEditForm = ({ recordId }: Props) => {
                 setEmissionSubsources([]);
                 setCommercialUnits([]);
               }}
-              className={`${formInputClass("violet")} text-zinc-700`}
+              className={`${formInputClass("teal")} text-zinc-700`}
             >
               <option value="">Selecciona un grupo</option>
               {emissionGroups.map((g) => (
@@ -397,7 +397,7 @@ export const CarbonFootprintEditForm = ({ recordId }: Props) => {
                 setValue("emissionSourceCategoryId", e.target.value);
                 handleSourceCategoryChange(e.target.value);
               }}
-              className={`${formInputClass("violet")} text-zinc-700`}
+              className={`${formInputClass("teal")} text-zinc-700`}
             >
               <option value="">Selecciona un tipo de fuente</option>
               {filteredSources.map((s) => (
@@ -422,7 +422,7 @@ export const CarbonFootprintEditForm = ({ recordId }: Props) => {
                 handleSubsourceChange(e.target.value);
               }}
               disabled={!watchSourceCategoryId}
-              className={`${formInputClass("violet")} text-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed`}
+              className={`${formInputClass("teal")} text-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               <option value="">Selecciona una fuente</option>
               {emissionSubsources.map((ss) => (

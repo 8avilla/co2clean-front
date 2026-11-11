@@ -58,17 +58,17 @@ export const AnalysisV2BarChart = ({
   return (
     <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-zinc-50 flex-shrink-0">
-        <h3 className="text-sm font-bold text-zinc-900">
+      <div className="px-6 py-5 border-b border-zinc-100 flex-shrink-0">
+        <h3 className="text-base font-bold text-zinc-900">
           Emisiones por tipo de fuente
         </h3>
-        <p className="text-xs text-zinc-400 mt-0.5">
+        <p className="text-sm text-zinc-500 mt-0.5">
           tCO₂e por tipo de fuente — de mayor a menor
         </p>
       </div>
 
       {/* Bars */}
-      <div className="flex-1 px-6 py-5 space-y-3 overflow-y-auto">
+      <div className="flex-1 px-6 py-5 space-y-4 overflow-y-auto">
         {bars.map((bar) => {
           const widthPct = maxTco2e > 0 ? (bar.tco2e / maxTco2e) * 100 : 0;
 
@@ -82,18 +82,18 @@ export const AnalysisV2BarChart = ({
                     style={{ backgroundColor: bar.color }}
                   />
                   <span
-                    className="text-xs font-medium text-zinc-700 truncate"
+                    className="text-sm font-medium text-zinc-800 truncate"
                     title={bar.categoryName}
                   >
                     {bar.categoryName}
                   </span>
                 </div>
                 <div className="flex items-baseline gap-1.5 flex-shrink-0">
-                  <span className="text-xs font-bold font-mono tabular-nums text-zinc-800">
+                  <span className="text-sm font-bold font-mono tabular-nums text-zinc-900">
                     {fmt(bar.tco2e)}
                   </span>
-                  <span className="text-[10px] text-zinc-400">tCO₂e</span>
-                  <span className="text-[10px] text-zinc-400 w-9 text-right tabular-nums">
+                  <span className="text-xs text-zinc-500">tCO₂e</span>
+                  <span className="text-xs text-zinc-500 w-9 text-right tabular-nums">
                     {Math.round(bar.percentage)}%
                   </span>
                 </div>
@@ -113,7 +113,7 @@ export const AnalysisV2BarChart = ({
 
               {/* Group tag */}
               <p
-                className="text-[10px] mt-0.5 pl-3.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="text-xs mt-0.5 pl-3.5 opacity-0 group-hover:opacity-100 transition-opacity"
                 style={{ color: bar.color }}
               >
                 {bar.groupName}
@@ -124,8 +124,8 @@ export const AnalysisV2BarChart = ({
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-3.5 bg-zinc-50 border-t border-zinc-100 flex justify-between items-center flex-shrink-0">
-        <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+      <div className="px-6 py-4 bg-zinc-50 border-t border-zinc-100 flex justify-between items-center flex-shrink-0">
+        <span className="text-sm font-semibold text-zinc-600">
           {bars.length}{" "}
           {bars.length === 1 ? "tipo de fuente" : "tipos de fuente"}
         </span>

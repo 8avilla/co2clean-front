@@ -1,13 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import {
-  FlaskConical,
-  Zap,
-  ChevronDown,
-  ChevronRight,
-  ChevronsUpDown,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronsUpDown } from "lucide-react";
 import {
   ApiEmissionFactor,
   FACTOR_MASS_UNIT_TO_KG,
@@ -15,16 +9,28 @@ import {
 } from "../../types";
 import { SearchInput } from "@/shared/components/Common/SearchInput";
 import { matchesSearchTerms } from "@/shared/lib/list-utils";
+import { formatNumber } from "@/shared/lib/format";
+import { buttonClass } from "@/shared/components/Common/button-styles";
+import {
+  FORM_LABEL_CLASS,
+  formInputClass,
+} from "@/shared/components/Common/form-styles";
 
 interface AnalysisFactorsTabProps {
   factors: ApiEmissionFactor[];
 }
 
+// Same significant digits for every factor so columns scan evenly; the exact value stays in the tooltip
 function fmtFactor(value: number): string {
-  if (value === 0) return "0";
-  if (value < 0.0001) return value.toExponential(3);
-  return value.toPrecision(5);
+  return formatNumber(value, 4);
 }
+
+function fmtUncertainty(value: number): string {
+  return `${value.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+}
+
+const pluralFactors = (count: number): string =>
+  `${count} ${count === 1 ? "factor" : "factores"}`;
 
 interface GasGroup {
   gasId: string;
@@ -224,104 +230,119 @@ export const AnalysisFactorsTab = ({ factors }: AnalysisFactorsTabProps) => {
     );
   }
 
+  const selectClass = `${formInputClass("teal")} min-w-[200px]`;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Toolbar */}
-      <div className="flex flex-wrap gap-3 items-center">
+      <div className="flex flex-wrap gap-4 items-end">
         <SearchInput
           value={search}
           onChange={setSearch}
           placeholder="Buscar gas, fuente o tipo de fuente..."
-          accent="violet"
-          className="flex-1 min-w-[200px] max-w-sm"
+          accent="teal"
+          className="flex-1 min-w-[220px] max-w-sm"
         />
 
         {uniqueCategories.length > 0 && (
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="text-xs px-2.5 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all bg-white text-zinc-700 min-w-[160px]"
-          >
-            <option value="">Todos los tipos de fuente</option>
-            {uniqueCategories.map((c) => (
-              <option key={c.id} value={c.id} title={c.name}>
-                {c.name.length > 30 ? `${c.name.substring(0, 27)}...` : c.name}
-              </option>
-            ))}
-          </select>
+          <div className="space-y-1">
+            <label
+              htmlFor="factors-category-filter"
+              className={FORM_LABEL_CLASS}
+            >
+              Tipo de fuente
+            </label>
+            <select
+              id="factors-category-filter"
+              value={categoryFilter}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value);
+                setSourceFilter("");
+              }}
+              className={selectClass}
+            >
+              <option value="">Todos</option>
+              {uniqueCategories.map((c) => (
+                <option key={c.id} value={c.id} title={c.name}>
+                  {c.name.length > 30
+                    ? `${c.name.substring(0, 27)}...`
+                    : c.name}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
 
         {uniqueSources.length > 0 && (
-          <select
-            value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
-            className="text-xs px-2.5 py-2 rounded-xl border border-zinc-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all bg-white text-zinc-700 min-w-[160px]"
-          >
-            <option value="">Todas las fuentes</option>
-            {uniqueSources.map((s) => (
-              <option key={s.id} value={s.id} title={s.name}>
-                {s.name.length > 30 ? `${s.name.substring(0, 27)}...` : s.name}
-              </option>
-            ))}
-          </select>
+          <div className="space-y-1">
+            <label htmlFor="factors-source-filter" className={FORM_LABEL_CLASS}>
+              Fuente de emisión
+            </label>
+            <select
+              id="factors-source-filter"
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value)}
+              className={selectClass}
+            >
+              <option value="">Todas</option>
+              {uniqueSources.map((s) => (
+                <option key={s.id} value={s.id} title={s.name}>
+                  {s.name.length > 30
+                    ? `${s.name.substring(0, 27)}...`
+                    : s.name}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
 
         <button
+          type="button"
           onClick={isAllCollapsed ? expandAll : collapseAll}
-          className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-800 font-semibold px-2.5 py-2 rounded-xl border border-zinc-200 hover:border-zinc-300 transition-colors ml-auto"
+          className={`${buttonClass({ variant: "secondary" })} ml-auto`}
         >
-          <ChevronsUpDown size={12} />
+          <ChevronsUpDown size={14} />
           {isAllCollapsed ? "Expandir todo" : "Colapsar todo"}
         </button>
       </div>
 
       {filteredFactors.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-zinc-100 p-10 text-center text-zinc-400 text-sm">
+        <div className="bg-white rounded-2xl border border-zinc-100 p-10 text-center text-zinc-500 text-sm">
           No hay factores que coincidan con la búsqueda
         </div>
       ) : (
         grouped.map((group) => {
           const catCollapsed = collapsedCategories.has(group.categoryId);
           const totalFactors = group.sources.reduce(
-            (s, src) => s + src.factors.length,
+            (sum, src) => sum + src.factors.length,
             0,
           );
 
           return (
-            <div
-              key={group.categoryId}
-              className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden"
-            >
-              {/* ── Nivel 1: Tipo de fuente ── */}
-              <div
-                className="px-5 py-3 bg-zinc-50 border-b border-zinc-100 flex items-center justify-between cursor-pointer select-none hover:bg-zinc-100/70 transition-colors"
+            <section key={group.categoryId} className="space-y-3">
+              {/* ── Level 1: source type (section heading) ── */}
+              <button
+                type="button"
+                className="w-full flex items-center gap-2 text-left"
+                aria-expanded={!catCollapsed}
                 onClick={() => toggleCategory(group.categoryId)}
               >
-                <div className="flex items-center gap-2">
-                  {catCollapsed ? (
-                    <ChevronRight
-                      size={14}
-                      className="text-zinc-400 shrink-0"
-                    />
-                  ) : (
-                    <ChevronDown size={14} className="text-zinc-400 shrink-0" />
-                  )}
-                  <h3 className="text-xs font-bold text-zinc-700 uppercase tracking-wider">
-                    {group.categoryName}
-                  </h3>
-                  {catCollapsed && (
-                    <span className="text-zinc-400 text-[10px]">
-                      ({group.sources.length}{" "}
-                      {group.sources.length === 1 ? "fuente" : "fuentes"})
-                    </span>
-                  )}
-                </div>
-                <span className="text-xs text-zinc-400">
-                  {totalFactors} {totalFactors === 1 ? "factor" : "factores"}
+                {catCollapsed ? (
+                  <ChevronRight size={16} className="text-zinc-500 shrink-0" />
+                ) : (
+                  <ChevronDown size={16} className="text-zinc-500 shrink-0" />
+                )}
+                <h3 className="text-base font-bold text-zinc-900">
+                  {group.categoryName}
+                </h3>
+                <span className="text-xs font-semibold text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded-full">
+                  {group.sources.length}{" "}
+                  {group.sources.length === 1 ? "fuente" : "fuentes"} ·{" "}
+                  {pluralFactors(totalFactors)}
                 </span>
-              </div>
+              </button>
 
-              {/* ── Nivel 2: Fuentes dentro del tipo de fuente ── */}
+              {/* ── Level 2: one card per emission source ── */}
               {!catCollapsed &&
                 group.sources.map((src) => {
                   const srcKey = `${group.categoryId}:${src.sourceId}`;
@@ -330,104 +351,95 @@ export const AnalysisFactorsTab = ({ factors }: AnalysisFactorsTabProps) => {
                   return (
                     <div
                       key={srcKey}
-                      className="border-b border-zinc-100 last:border-b-0"
+                      className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden"
                     >
-                      {/* Source sub-header */}
-                      <div
-                        className="px-5 py-2 bg-zinc-50/50 border-b border-zinc-50 flex items-center justify-between cursor-pointer select-none hover:bg-zinc-50 transition-colors"
+                      <button
+                        type="button"
+                        className="w-full px-5 py-3.5 flex items-center justify-between gap-3 text-left hover:bg-zinc-50 transition-colors"
+                        aria-expanded={!srcCollapsed}
                         onClick={() => toggleSource(srcKey)}
                       >
-                        <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-2 min-w-0">
                           {srcCollapsed ? (
                             <ChevronRight
-                              size={12}
-                              className="text-zinc-300 shrink-0"
+                              size={14}
+                              className="text-zinc-400 shrink-0"
                             />
                           ) : (
                             <ChevronDown
-                              size={12}
-                              className="text-zinc-300 shrink-0"
+                              size={14}
+                              className="text-zinc-400 shrink-0"
                             />
                           )}
-                          <Zap size={11} className="text-zinc-400 shrink-0" />
-                          <span className="text-xs font-semibold text-zinc-600">
+                          <span className="text-sm font-semibold text-zinc-900 truncate">
                             {src.sourceName}
                           </span>
-                          {srcCollapsed && (
-                            <span className="text-zinc-400 text-[10px]">
-                              ({src.factors.length}{" "}
-                              {src.factors.length === 1 ? "gas" : "gases"})
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-[10px] text-zinc-400">
-                          {src.factors.length}{" "}
-                          {src.factors.length === 1 ? "factor" : "factores"}
                         </span>
-                      </div>
+                        <span className="text-xs text-zinc-500 shrink-0">
+                          {pluralFactors(src.factors.length)}
+                        </span>
+                      </button>
 
-                      {/* ── Nivel 3: Factores ── */}
+                      {/* ── Level 3: factors table ── */}
                       {!srcCollapsed && (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-xs">
+                        <div className="overflow-x-auto border-t border-zinc-100">
+                          <table className="w-full max-w-4xl text-sm">
                             <thead>
-                              <tr className="border-b border-zinc-100 text-zinc-400 font-bold uppercase tracking-wider bg-white">
-                                <th className="px-5 py-2 text-left">Gas</th>
-                                <th className="px-4 py-2 text-right">GWP</th>
-                                <th className="px-4 py-2 text-right">Factor</th>
-                                <th className="px-4 py-2 text-left">Unidad</th>
-                                <th className="px-4 py-2 text-right hidden sm:table-cell">
-                                  Incert. %
+                              <tr className="bg-zinc-50/70 text-xs font-semibold text-zinc-500">
+                                <th className="px-5 py-2.5 text-left">Gas</th>
+                                <th className="px-4 py-2.5 text-right">GWP</th>
+                                <th className="px-4 py-2.5 text-right">
+                                  Factor
+                                </th>
+                                <th className="px-4 py-2.5 text-left">
+                                  Unidad
+                                </th>
+                                <th className="px-4 py-2.5 text-right hidden sm:table-cell">
+                                  Incertidumbre
                                 </th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-zinc-50">
+                            <tbody className="divide-y divide-zinc-100">
                               {groupFactorsByGas(src.factors).map(
                                 (gasGroup) => {
                                   const hasVariants =
                                     gasGroup.variants.length > 1;
+                                  const stackClass = `flex flex-col ${hasVariants ? "gap-1.5" : ""}`;
                                   return (
                                     <tr
                                       key={gasGroup.gasId}
                                       className="hover:bg-zinc-50/60 transition-colors"
                                     >
-                                      <td className="px-5 py-2.5">
+                                      <td className="px-5 py-3">
                                         <div className="flex items-center gap-2">
-                                          <FlaskConical
-                                            size={11}
-                                            className="text-violet-400 shrink-0"
-                                          />
-                                          <span className="text-zinc-700 font-medium">
+                                          <span className="text-zinc-900 font-medium">
                                             {gasGroup.gasName}
                                           </span>
                                           {gasGroup.formula && (
-                                            <span className="font-mono text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded text-[10px]">
+                                            <span className="font-mono text-xs text-zinc-600 bg-zinc-100 px-1.5 py-0.5 rounded">
                                               {gasGroup.formula}
                                             </span>
                                           )}
                                         </div>
                                       </td>
-                                      <td className="px-4 py-2.5 text-right font-mono tabular-nums text-zinc-700 font-semibold">
-                                        {gasGroup.gwp}
+                                      <td className="px-4 py-3 text-right font-mono tabular-nums text-zinc-700">
+                                        {formatNumber(gasGroup.gwp)}
                                       </td>
-                                      <td className="px-4 py-2.5 text-right font-mono tabular-nums">
-                                        <div
-                                          className={`flex flex-col ${hasVariants ? "gap-1" : ""}`}
-                                        >
+                                      <td className="px-4 py-3 text-right font-mono tabular-nums">
+                                        <div className={stackClass}>
                                           {gasGroup.variants.map((f) => (
                                             <span
                                               key={f.id}
-                                              className="text-zinc-800 font-semibold"
+                                              className="text-zinc-900 font-semibold"
+                                              title={`Valor exacto: ${f.factor}`}
                                             >
                                               {fmtFactor(f.factor)}
                                             </span>
                                           ))}
                                         </div>
                                       </td>
-                                      <td className="px-4 py-2.5">
-                                        <div
-                                          className={`flex flex-col ${hasVariants ? "gap-1" : ""}`}
-                                        >
+                                      <td className="px-4 py-3">
+                                        <div className={stackClass}>
                                           {gasGroup.variants.map((f) => {
                                             const massUnit =
                                               (f.factorMassUnit ??
@@ -444,7 +456,7 @@ export const AnalysisFactorsTab = ({ factors }: AnalysisFactorsTabProps) => {
                                             return (
                                               <span
                                                 key={f.id}
-                                                className="font-mono text-zinc-700 font-semibold bg-zinc-100 px-2 py-0.5 rounded w-fit"
+                                                className="font-mono text-xs text-zinc-700 bg-zinc-100 px-2 py-0.5 rounded w-fit"
                                                 title={unitTitle}
                                               >
                                                 {unitLabel}
@@ -453,21 +465,21 @@ export const AnalysisFactorsTab = ({ factors }: AnalysisFactorsTabProps) => {
                                           })}
                                         </div>
                                       </td>
-                                      <td className="px-4 py-2.5 text-right hidden sm:table-cell">
+                                      <td className="px-4 py-3 text-right tabular-nums hidden sm:table-cell">
                                         <div
-                                          className={`flex flex-col items-end ${hasVariants ? "gap-1" : ""}`}
+                                          className={`${stackClass} items-end`}
                                         >
                                           {gasGroup.variants.map((f) => (
                                             <span
                                               key={f.id}
                                               className={
                                                 f.uncertainty != null
-                                                  ? "text-zinc-500"
-                                                  : "text-zinc-300"
+                                                  ? "text-zinc-600"
+                                                  : "text-zinc-400"
                                               }
                                             >
                                               {f.uncertainty != null
-                                                ? `${f.uncertainty}%`
+                                                ? fmtUncertainty(f.uncertainty)
                                                 : "—"}
                                             </span>
                                           ))}
@@ -484,7 +496,7 @@ export const AnalysisFactorsTab = ({ factors }: AnalysisFactorsTabProps) => {
                     </div>
                   );
                 })}
-            </div>
+            </section>
           );
         })
       )}

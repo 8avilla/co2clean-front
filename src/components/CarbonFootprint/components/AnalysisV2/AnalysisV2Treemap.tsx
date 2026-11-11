@@ -113,11 +113,11 @@ export const AnalysisV2Treemap = ({
 
   return (
     <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden flex flex-col">
-      <div className="px-6 py-4 border-b border-zinc-50 flex-shrink-0">
-        <h3 className="text-sm font-bold text-zinc-900">
+      <div className="px-6 py-5 border-b border-zinc-100 flex-shrink-0">
+        <h3 className="text-base font-bold text-zinc-900">
           Treemap de Emisiones
         </h3>
-        <p className="text-xs text-zinc-400 mt-0.5">
+        <p className="text-sm text-zinc-500 mt-0.5">
           Área proporcional al tCO₂e de cada tipo de fuente
         </p>
       </div>
@@ -195,15 +195,15 @@ export const AnalysisV2Treemap = ({
               </span>
             </div>
           ) : (
-            <p className="text-xs text-zinc-400 italic px-1">
+            <p className="text-sm text-zinc-500 italic px-1">
               Pasa el cursor sobre un área para ver el detalle
             </p>
           )}
         </div>
       </div>
 
-      <div className="px-6 py-3 bg-zinc-50 border-t border-zinc-100 flex justify-between items-center flex-shrink-0">
-        <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+      <div className="px-6 py-4 bg-zinc-50 border-t border-zinc-100 flex justify-between items-center flex-shrink-0">
+        <span className="text-sm font-semibold text-zinc-600">
           {tiles.length}{" "}
           {tiles.length === 1 ? "tipo de fuente" : "tipos de fuente"}
         </span>

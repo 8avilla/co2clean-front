@@ -70,7 +70,7 @@ export const AnalysisV2Certificate = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
           <div className="flex items-center gap-2">
-            <Award size={18} className="text-violet-600" />
+            <Award size={18} className="text-teal-600" />
             <span className="font-bold text-zinc-900 text-sm">
               Certificado de Huella de carbono
             </span>
@@ -304,10 +304,7 @@ export const AnalysisV2Certificate = ({
           >
             Cerrar
           </button>
-          <button
-            onClick={handleDownload}
-            className={buttonClass()}
-          >
+          <button onClick={handleDownload} className={buttonClass()}>
             <Download size={15} />
             Descargar PNG
           </button>

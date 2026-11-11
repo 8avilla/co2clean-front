@@ -95,9 +95,11 @@ export const AnalysisV2WaterfallChart = ({
 
   return (
     <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
-      <div className="px-6 py-4 border-b border-zinc-50">
-        <h3 className="text-sm font-bold text-zinc-900">Gráfico de Cascada</h3>
-        <p className="text-xs text-zinc-400 mt-0.5">
+      <div className="px-6 py-5 border-b border-zinc-100">
+        <h3 className="text-base font-bold text-zinc-900">
+          Gráfico de cascada
+        </h3>
+        <p className="text-sm text-zinc-500 mt-0.5">
           Contribución acumulada por tipo de fuente hasta el total global
         </p>
       </div>
@@ -249,14 +251,14 @@ export const AnalysisV2WaterfallChart = ({
             </span>
           </div>
         ) : (
-          <p className="text-xs text-zinc-400 italic px-1">
+          <p className="text-sm text-zinc-500 italic px-1">
             Pasa el cursor sobre una barra para ver el detalle
           </p>
         )}
       </div>
 
-      <div className="px-6 py-3 bg-zinc-50 border-t border-zinc-100 flex justify-between items-center">
-        <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+      <div className="px-6 py-4 bg-zinc-50 border-t border-zinc-100 flex justify-between items-center">
+        <span className="text-sm font-semibold text-zinc-600">
           {bars.length - 1}{" "}
           {bars.length - 1 === 1 ? "tipo de fuente" : "tipos de fuente"}
         </span>

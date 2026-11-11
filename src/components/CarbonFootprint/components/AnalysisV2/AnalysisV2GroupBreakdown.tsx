@@ -2,7 +2,6 @@
 
 import { Fragment, useMemo, useState, useCallback } from "react";
 import {
-  FlaskConical,
   TriangleAlert,
   X,
   Zap,
@@ -15,6 +14,11 @@ import { Tooltip } from "@/shared/components/Tooltip";
 import { GroupedResult, SourceResult } from "./hooks/useAnalysisResults";
 import { CHART_COLORS } from "./AnalysisV2EmissionsChart";
 import { SearchInput } from "@/shared/components/Common/SearchInput";
+import { buttonClass } from "@/shared/components/Common/button-styles";
+import {
+  FORM_LABEL_CLASS,
+  formInputClass,
+} from "@/shared/components/Common/form-styles";
 import { matchesSearchTerms } from "@/shared/lib/list-utils";
 
 interface AnalysisV2GroupBreakdownProps {
@@ -42,21 +46,21 @@ function CoverageBadge({ covered, total }: { covered: number; total: number }) {
   const pct = Math.round((covered / total) * 100);
   if (pct === 100) {
     return (
-      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">
+      <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">
         100%
       </span>
     );
   }
   if (pct === 0) {
     return (
-      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-600 border border-red-200">
+      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-bold bg-red-50 text-red-600 border border-red-200">
         <TriangleAlert size={9} />
         Sin factor
       </span>
     );
   }
   return (
-    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200">
+    <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-amber-50 text-amber-600 border border-amber-200">
       {pct}%
     </span>
   );
@@ -247,20 +251,20 @@ export const AnalysisV2GroupBreakdown = ({
   return (
     <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
       {/* Header + filters */}
-      <div className="px-6 py-4 border-b border-zinc-100 space-y-3">
+      <div className="px-6 py-5 border-b border-zinc-100 space-y-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <h3 className="text-sm font-bold text-zinc-900">
+            <h3 className="text-base font-bold text-zinc-900">
               Desglose por factor de emisión
             </h3>
-            <p className="text-xs text-zinc-400 mt-0.5">
+            <p className="text-sm text-zinc-500 mt-0.5">
               Grupo › Tipo › Fuente › Gas
             </p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={isAllCollapsed ? expandAll : collapseAll}
-              className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-800 font-semibold px-2.5 py-1.5 rounded-lg border border-zinc-200 hover:border-zinc-300 transition-colors"
+              className={buttonClass({ variant: "secondary", size: "sm" })}
             >
               <ChevronsUpDown size={12} />
               {isAllCollapsed ? "Expandir todo" : "Colapsar todo"}
@@ -268,7 +272,7 @@ export const AnalysisV2GroupBreakdown = ({
             {isFiltered && (
               <button
                 onClick={clearFilters}
-                className="text-xs text-violet-600 hover:text-violet-800 font-semibold flex items-center gap-1"
+                className="text-sm text-teal-700 hover:text-teal-900 font-semibold flex items-center gap-1"
               >
                 <X size={12} />
                 Limpiar filtros
@@ -277,42 +281,57 @@ export const AnalysisV2GroupBreakdown = ({
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-4 items-end">
           <SearchInput
             value={search}
             onChange={setSearch}
             placeholder="Buscar tipo de fuente, fuente o gas..."
-            accent="violet"
+            accent="teal"
             className="flex-1 min-w-[180px] max-w-xs"
           />
 
-          <select
-            value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs rounded-xl border border-zinc-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all bg-white text-zinc-700 min-w-[160px]"
-          >
-            <option value="">Todas las fuentes</option>
-            {uniqueSources.map((s) => (
-              <option key={s.value} value={s.value} title={s.label}>
-                {s.label.length > 35
-                  ? `${s.label.substring(0, 32)}...`
-                  : s.label}
-              </option>
-            ))}
-          </select>
+          <div className="space-y-1">
+            <label
+              htmlFor="breakdown-source-filter"
+              className={FORM_LABEL_CLASS}
+            >
+              Fuente de emisión
+            </label>
+            <select
+              id="breakdown-source-filter"
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value)}
+              className={`${formInputClass("teal")} min-w-[200px]`}
+            >
+              <option value="">Todas</option>
+              {uniqueSources.map((s) => (
+                <option key={s.value} value={s.value} title={s.label}>
+                  {s.label.length > 35
+                    ? `${s.label.substring(0, 32)}...`
+                    : s.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <select
-            value={gasFilter}
-            onChange={(e) => setGasFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs rounded-xl border border-zinc-200 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all bg-white text-zinc-700 min-w-[160px]"
-          >
-            <option value="">Todos los gases</option>
-            {uniqueGases.map((gas) => (
-              <option key={gas} value={gas}>
-                {gas}
-              </option>
-            ))}
-          </select>
+          <div className="space-y-1">
+            <label htmlFor="breakdown-gas-filter" className={FORM_LABEL_CLASS}>
+              Gas
+            </label>
+            <select
+              id="breakdown-gas-filter"
+              value={gasFilter}
+              onChange={(e) => setGasFilter(e.target.value)}
+              className={`${formInputClass("teal")} min-w-[200px]`}
+            >
+              <option value="">Todos</option>
+              {uniqueGases.map((gas) => (
+                <option key={gas} value={gas}>
+                  {gas}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -322,11 +341,11 @@ export const AnalysisV2GroupBreakdown = ({
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-xs border-collapse">
+          <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="bg-zinc-50 border-b border-zinc-100 text-zinc-400 font-bold uppercase tracking-wider">
-                <th className="px-5 py-2.5 text-left font-bold">Concepto</th>
-                <th className="px-3 py-2.5 text-right font-bold hidden lg:table-cell">
+              <tr className="bg-zinc-50 border-b border-zinc-100 text-zinc-500 text-xs font-semibold">
+                <th className="px-5 py-3 text-left font-semibold">Concepto</th>
+                <th className="px-3 py-3 text-right font-semibold hidden lg:table-cell">
                   <Tooltip content="Suma de cantidades registradas en la fuente de emisión (datos de actividad)">
                     <span className="flex items-center justify-end gap-1 cursor-default">
                       Cantidad
@@ -334,7 +353,7 @@ export const AnalysisV2GroupBreakdown = ({
                     </span>
                   </Tooltip>
                 </th>
-                <th className="px-3 py-2.5 text-right font-bold hidden lg:table-cell">
+                <th className="px-3 py-3 text-right font-semibold hidden lg:table-cell">
                   <Tooltip content="Masa del gas emitido antes de aplicar el GWP (toneladas de gas puro)">
                     <span className="flex items-center justify-end gap-1 cursor-default">
                       Ton gas
@@ -342,7 +361,7 @@ export const AnalysisV2GroupBreakdown = ({
                     </span>
                   </Tooltip>
                 </th>
-                <th className="px-3 py-2.5 text-right font-bold">
+                <th className="px-3 py-3 text-right font-semibold">
                   <Tooltip content="Toneladas de CO₂ equivalente — masa de gas × GWP. Unidad estándar para comparar diferentes gases de efecto invernadero.">
                     <span className="flex items-center justify-end gap-1 cursor-default">
                       tCO₂e
@@ -350,7 +369,7 @@ export const AnalysisV2GroupBreakdown = ({
                     </span>
                   </Tooltip>
                 </th>
-                <th className="px-4 py-2.5 text-right font-bold">
+                <th className="px-4 py-3 text-right font-semibold">
                   <Tooltip
                     content="Porcentaje sobre el total general de emisiones del inventario"
                     side="bottom"
@@ -376,14 +395,14 @@ export const AnalysisV2GroupBreakdown = ({
                   <Fragment key={group.groupId}>
                     {/* ── Nivel 1: Grupo ── */}
                     <tr
-                      className="border-b border-zinc-600 cursor-pointer select-none"
+                      className="border-b border-zinc-200 cursor-pointer select-none"
                       style={{
-                        backgroundColor: "#3f3f46",
+                        backgroundColor: "#f4f4f5",
                         borderLeft: `4px solid ${color}`,
                       }}
                       onClick={() => toggleGroup(group.groupId)}
                     >
-                      <td className="px-5 py-2.5">
+                      <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">
                           {groupCollapsed ? (
                             <ChevronRight
@@ -400,16 +419,16 @@ export const AnalysisV2GroupBreakdown = ({
                             className="w-2 h-2 rounded-full shrink-0"
                             style={{ backgroundColor: color }}
                           />
-                          <span className="font-bold text-white text-[13px]">
+                          <span className="font-bold text-zinc-900 text-base">
                             {group.groupName}
                           </span>
                           {group.groupCode && (
-                            <span className="font-mono text-zinc-400 text-[10px]">
+                            <span className="font-mono text-zinc-500 text-xs">
                               {group.groupCode}
                             </span>
                           )}
                           {groupCollapsed && (
-                            <span className="text-zinc-500 text-[10px] ml-1">
+                            <span className="text-zinc-500 text-xs ml-1">
                               ({group.categories.length}{" "}
                               {group.categories.length === 1
                                 ? "tipo de fuente"
@@ -422,12 +441,12 @@ export const AnalysisV2GroupBreakdown = ({
                       <td className="px-3 py-2.5 hidden lg:table-cell" />
                       <td className="px-3 py-2.5 hidden lg:table-cell" />
                       <td className="px-3 py-2.5 text-right">
-                        <span className="font-bold text-white tabular-nums">
+                        <span className="font-bold text-zinc-900 tabular-nums">
                           {fmt(group.tco2e)}
                         </span>
                       </td>
                       <td className="px-4 py-2.5 text-right">
-                        <span className="text-zinc-300 tabular-nums">
+                        <span className="text-zinc-600 tabular-nums">
                           {totalTco2e > 0
                             ? ((group.tco2e / totalTco2e) * 100).toFixed(1)
                             : "0"}
@@ -449,7 +468,7 @@ export const AnalysisV2GroupBreakdown = ({
                               style={{ borderLeft: `4px solid ${color}` }}
                               onClick={() => toggleCategory(catKey)}
                             >
-                              <td className="px-5 py-2 pl-9">
+                              <td className="px-5 py-3 pl-10">
                                 <div className="flex items-center gap-2 flex-wrap">
                                   {catCollapsed ? (
                                     <ChevronRight
@@ -477,13 +496,13 @@ export const AnalysisV2GroupBreakdown = ({
                                           e.stopPropagation();
                                           onNavigateToUncovered();
                                         }}
-                                        className="text-[10px] text-amber-600 hover:text-amber-800 underline underline-offset-1"
+                                        className="text-xs text-amber-600 hover:text-amber-800 underline underline-offset-1"
                                       >
                                         ver →
                                       </button>
                                     )}
                                   {catCollapsed && (
-                                    <span className="text-zinc-400 text-[10px]">
+                                    <span className="text-zinc-400 text-xs">
                                       ({cat.sources.length}{" "}
                                       {cat.sources.length === 1
                                         ? "fuente"
@@ -493,14 +512,14 @@ export const AnalysisV2GroupBreakdown = ({
                                   )}
                                 </div>
                               </td>
-                              <td className="px-3 py-2 hidden lg:table-cell" />
-                              <td className="px-3 py-2 hidden lg:table-cell" />
-                              <td className="px-3 py-2 text-right">
+                              <td className="px-3 py-3 hidden lg:table-cell" />
+                              <td className="px-3 py-3 hidden lg:table-cell" />
+                              <td className="px-3 py-3 text-right">
                                 <span className="font-semibold text-zinc-800 tabular-nums">
                                   {fmt(cat.tco2e)}
                                 </span>
                               </td>
-                              <td className="px-4 py-2 text-right">
+                              <td className="px-4 py-3 text-right">
                                 <span className="text-zinc-500 tabular-nums">
                                   {totalTco2e > 0
                                     ? ((cat.tco2e / totalTco2e) * 100).toFixed(
@@ -530,7 +549,7 @@ export const AnalysisV2GroupBreakdown = ({
                                       }}
                                       onClick={() => toggleSource(srcKey)}
                                     >
-                                      <td className="px-5 py-1.5 pl-14">
+                                      <td className="px-5 py-2.5 pl-16">
                                         <div className="flex items-center gap-2 flex-wrap">
                                           {srcCollapsed ? (
                                             <ChevronRight
@@ -547,7 +566,7 @@ export const AnalysisV2GroupBreakdown = ({
                                             size={11}
                                             className="text-zinc-400 shrink-0"
                                           />
-                                          <span className="font-medium text-zinc-600">
+                                          <span className="font-medium text-zinc-800">
                                             {src.sourceName}
                                           </span>
                                           <CoverageBadge
@@ -555,7 +574,7 @@ export const AnalysisV2GroupBreakdown = ({
                                             total={src.recordCount}
                                           />
                                           {srcCollapsed && (
-                                            <span className="text-zinc-400 text-[10px]">
+                                            <span className="text-zinc-400 text-xs">
                                               ({src.factors.length}{" "}
                                               {src.factors.length === 1
                                                 ? "gas"
@@ -565,27 +584,27 @@ export const AnalysisV2GroupBreakdown = ({
                                           )}
                                         </div>
                                       </td>
-                                      <td className="px-3 py-1.5 hidden lg:table-cell text-right">
+                                      <td className="px-3 py-2.5 hidden lg:table-cell text-right">
                                         <span className="tabular-nums text-zinc-600 font-medium">
                                           {src.totalQuantity.toLocaleString(
                                             "es-CO",
                                             { maximumFractionDigits: 2 },
                                           )}
                                           {src.unitSymbol && (
-                                            <span className="text-zinc-400 ml-0.5 text-[10px]">
+                                            <span className="text-zinc-400 ml-0.5 text-xs">
                                               {src.unitSymbol}
                                             </span>
                                           )}
                                         </span>
                                       </td>
-                                      <td className="px-3 py-1.5 hidden lg:table-cell" />
-                                      <td className="px-3 py-1.5 text-right">
+                                      <td className="px-3 py-2.5 hidden lg:table-cell" />
+                                      <td className="px-3 py-2.5 text-right">
                                         <span className="font-medium text-zinc-700 tabular-nums">
                                           {fmt(src.tco2e)}
                                         </span>
                                       </td>
-                                      <td className="px-4 py-1.5 text-right">
-                                        <span className="text-zinc-400 tabular-nums">
+                                      <td className="px-4 py-2.5 text-right">
+                                        <span className="text-zinc-500 tabular-nums">
                                           {totalTco2e > 0
                                             ? (
                                                 (src.tco2e / totalTco2e) *
@@ -614,38 +633,34 @@ export const AnalysisV2GroupBreakdown = ({
                                               borderLeft: `4px solid ${color}`,
                                             }}
                                           >
-                                            <td className="px-5 py-1.5 pl-20">
+                                            <td className="px-5 py-2.5 pl-24">
                                               <div className="flex items-center gap-1.5">
-                                                <FlaskConical
-                                                  size={10}
-                                                  className="text-violet-400 shrink-0"
-                                                />
-                                                <span className="text-zinc-500">
+                                                <span className="text-zinc-700">
                                                   {f.gasName}
                                                 </span>
                                                 {f.formula && (
-                                                  <span className="font-mono text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded text-[10px] leading-none">
+                                                  <span className="font-mono text-zinc-600 bg-zinc-100 px-1.5 py-0.5 rounded text-xs leading-none">
                                                     {f.formula}
                                                   </span>
                                                 )}
                                               </div>
                                             </td>
-                                            <td className="px-3 py-1.5 hidden lg:table-cell" />
-                                            <td className="px-3 py-1.5 text-right font-mono hidden lg:table-cell">
+                                            <td className="px-3 py-2.5 hidden lg:table-cell" />
+                                            <td className="px-3 py-2.5 text-right font-mono hidden lg:table-cell">
                                               <span className="text-zinc-500 tabular-nums">
                                                 {fmt(f.gasTonnes)}
                                               </span>
-                                              <span className="text-zinc-300 ml-0.5">
+                                              <span className="text-zinc-400 ml-0.5">
                                                 t
                                               </span>
                                             </td>
-                                            <td className="px-3 py-1.5 text-right">
-                                              <span className="font-semibold text-violet-700 tabular-nums">
+                                            <td className="px-3 py-2.5 text-right">
+                                              <span className="font-semibold text-zinc-900 tabular-nums">
                                                 {fmt(f.tco2e)}
                                               </span>
                                             </td>
-                                            <td className="px-4 py-1.5 text-right">
-                                              <span className="text-zinc-400 tabular-nums">
+                                            <td className="px-4 py-2.5 text-right">
+                                              <span className="text-zinc-500 tabular-nums">
                                                 {totalTco2e > 0
                                                   ? (
                                                       (f.tco2e / totalTco2e) *

@@ -95,11 +95,11 @@ export const AnalysisV2EmissionsChart = ({
 
   return (
     <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
-      <div className="px-6 py-4 border-b border-zinc-50">
-        <h3 className="text-sm font-bold text-zinc-900">
+      <div className="px-6 py-5 border-b border-zinc-100">
+        <h3 className="text-base font-bold text-zinc-900">
           Emisiones por Grupo de emisión
         </h3>
-        <p className="text-xs text-zinc-400 mt-0.5">
+        <p className="text-sm text-zinc-500 mt-0.5">
           tCO₂e — toneladas equivalentes de CO₂
         </p>
       </div>
@@ -159,7 +159,7 @@ export const AnalysisV2EmissionsChart = ({
         </div>
 
         {/* Legend */}
-        <div className="flex flex-col gap-3 w-full min-w-0">
+        <div className="flex flex-col gap-4 w-full min-w-0">
           {segments.map((seg, i) => (
             <div
               key={seg.group.groupId}
@@ -177,20 +177,20 @@ export const AnalysisV2EmissionsChart = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline justify-between gap-1">
                   <span
-                    className="text-xs font-semibold truncate transition-colors"
+                    className="text-sm font-semibold truncate transition-colors"
                     style={{ color: hovered === i ? seg.color : "#3f3f46" }}
                   >
                     {seg.group.groupCode || seg.group.groupName}
                   </span>
-                  <span className="text-xs font-mono text-zinc-600 shrink-0 tabular-nums">
+                  <span className="text-sm font-mono text-zinc-700 shrink-0 tabular-nums">
                     {Math.round(seg.group.tco2e).toLocaleString("es-CO")}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-1 mt-0.5">
-                  <span className="text-[11px] text-zinc-400 truncate">
+                  <span className="text-xs text-zinc-500 truncate">
                     {seg.group.groupName}
                   </span>
-                  <span className="text-[11px] text-zinc-400 shrink-0">
+                  <span className="text-xs text-zinc-500 shrink-0">
                     {Math.round(seg.group.percentage)}%
                   </span>
                 </div>
@@ -212,8 +212,8 @@ export const AnalysisV2EmissionsChart = ({
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-3.5 bg-zinc-50 border-t border-zinc-100 flex justify-between items-center">
-        <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+      <div className="px-6 py-4 bg-zinc-50 border-t border-zinc-100 flex justify-between items-center">
+        <span className="text-sm font-semibold text-zinc-600">
           Total de emisiones
         </span>
         <div className="flex items-baseline gap-1">
